@@ -87,8 +87,8 @@ if __name__ == '__main__':
 
         megachuds = conn.api.GetListMembers(slug=args.megachuds_list, owner_screen_name=conn.screen_name)
         for megachud in megachuds:
-            conn.block(megachud)
             conn.getFollowers(megachud, block=True)
+            conn.block(megachud)
 
         if args.verbose: sys.stderr.write('bottom of the loop\n')
         time.sleep(args.sleep)
