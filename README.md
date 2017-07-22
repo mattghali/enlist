@@ -8,7 +8,7 @@ Requirements:
  - just the `twitter` python library `(pip install twitter)`
 
 Configuration:
-You'll need a config file name `.twitter` in your home directory, which looks like this:
+You'll need a config file named `.twitter` in your home directory, which looks like this:
 ```
 [DEFAULT]
 screen_name: (your screen name)

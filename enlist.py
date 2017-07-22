@@ -32,19 +32,23 @@ class Connection(object):
         self.me = self.api.GetUser(screen_name=self.screen_name)
 
 
-    def getFollowers(self, user, next=-1, count=200, block=False, follows=[]):
+    def addFollowers(self, user, slug, next=-1, count=200):
+        if self.args.verbose: sys.stderr.write("listing followers of %s\n" % user.screen_name)
         (next, prev, follow) = self.api.GetFollowersPaged(cursor=next,
                                                         count=count,
                                                         skip_status=True,
                                                         user_id=user.id,
                                                         include_user_entities=False)
-        follows.extend(follow)
-        if block:
-            for u in follows: self.block(user=u)
+        for f in follow:
+            if self.args.verbose: sys.stderr.write("adding %s\n" % f.screen_name)
+            try:
+                self.api.CreateListsMember(slug=slug, user_id=f.id,
+                                            owner_screen_name=self.screen_name)
+            except twitter.error.TwitterError, e:
+                pass # already listed or blocked
+            
         if next:
-            self.getFollowers(user, next=next, count=count, follows=follows)
-
-        return follows
+            self.addFollowers(user, slug, next=next, count=count)
 
 
     def block(self, user):
@@ -81,14 +85,16 @@ if __name__ == '__main__':
 
     # main loop
     while True:
+        megachuds = conn.api.GetListMembers(slug=args.megachuds_list, owner_screen_name=conn.screen_name)
+        for megachud in megachuds:
+            if args.verbose: sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
+            conn.addFollowers(megachud, args.chuds_list)
+            conn.block(megachud)
+
+
         chuds = conn.api.GetListMembers(slug=args.chuds_list, owner_screen_name=conn.screen_name)
         for chud in chuds:
             conn.block(chud)
-
-        megachuds = conn.api.GetListMembers(slug=args.megachuds_list, owner_screen_name=conn.screen_name)
-        for megachud in megachuds:
-            conn.getFollowers(megachud, block=True)
-            conn.block(megachud)
 
         if args.verbose: sys.stderr.write('bottom of the loop\n')
         time.sleep(args.sleep)
