@@ -53,11 +53,8 @@ class Connection(object):
 
     def block(self, user):
         try:
-            status = self.api.LookupFriendship(user_id=user.id)[0]
-            if status.following or status.followed_by:
-                if self.args.verbose: sys.stderr.write("almost blocked a friend: %s\n" % user.screen_name)
-            elif status.blocking:
-                if self.args.verbose: sys.stderr.write("already blocked: %s\n" % user.screen_name)
+            if user.following:
+                if self.args.verbose: sys.stderr.write("tried to block a friend: %s\n" % user.screen_name)
             else:
                 if self.args.verbose: sys.stderr.write("blocked: %s\n" % user.screen_name)
                 self.api.CreateBlock(user_id=user.id, include_entities=False, skip_status=True)
