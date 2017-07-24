@@ -75,22 +75,24 @@ class Connection(object):
 
 
     def block(self, user):
-        try:
-            if user.following:
-                if self.args.verbose: sys.stderr.write("tried to block a friend: %s\n" % user.screen_name)
-            else:
-                if self.args.verbose: sys.stderr.write("blocked: %s\n" % user.screen_name)
+        if user.following:
+            if self.args.verbose: sys.stderr.write("tried to block a friend: %s\n" % user.screen_name)
+        else:
+            try:
                 self.api.CreateBlock(user_id=user.id, include_entities=False, skip_status=True)
-        except Exception, e:
-            if self.args.verbose: sys.stderr.write("exception: %s\n" % e)
+                if self.args.verbose: sys.stderr.write("blocked: %s\n" % user.screen_name)
+            except Exception, e:
+                if self.args.verbose: sys.stderr.write("exception: %s\n" % e)
 
 
     def limits(self):
+        l = dict()
         resources = self.api.rate_limit.resources
         for res in resources:
             for ep in  resources[res]:
                 if resources[res][ep]['remaining'] < resources[res][ep]['limit']:
-                         return  "%s: %s" % (ep, resources[res][ep])
+                         l[ep] = resources[res][ep]
+        return l
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -125,6 +127,7 @@ if __name__ == '__main__':
         for chud in chuds:
             conn.block(chud)
 
-        if args.verbose: sys.stderr.write('bottom of the loop\n')
-        if args.verbose: sys.stderr.write("%s\n" % conn.limits())
+        if args.verbose:
+            sys.stderr.write('bottom of the loop\n')
+            sys.stderr.write("%s\n\n" % conn.limits())
         time.sleep(args.sleep)
