@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, os, sys, time
+import argparse, json, os, sys, time
 from ConfigParser import SafeConfigParser
 import twitter
 
@@ -30,12 +30,11 @@ class Connection(object):
                           access_token_secret=self.access_token_secret)
 
         self.api.InitializeRateLimit()
-        self.me = self.api.GetUser(screen_name=self.screen_name)
 
 
     def addFollowers(self, user, slug, next=-1, count=200, bulk=False):
         if self.api.rate_limit.resources['followers']['/followers/list'].get('remaining', 15) == 0:
-            if self.args.verbose: sys.stderr.write('out of rate limit credits, bailing')
+            if self.args.verbose: sys.stderr.write('out of rate limit credits, bailing\n')
             return next
 
         (next, prev, follow) = self.api.GetFollowersPaged(cursor=next,
@@ -81,7 +80,7 @@ class Connection(object):
             try:
                 self.api.CreateBlock(user_id=user.id, include_entities=False, skip_status=True)
                 if self.args.verbose: sys.stderr.write("blocked: %s\n" % user.screen_name)
-            except Exception, e:
+            except twitter.error.TwitterError, e:
                 if self.args.verbose: sys.stderr.write("exception: %s\n" % e)
 
 
@@ -92,11 +91,14 @@ class Connection(object):
             for ep in  resources[res]:
                 if resources[res][ep]['remaining'] < resources[res][ep]['limit']:
                          l[ep] = resources[res][ep]
+        for k in l:
+            # convert to seconds remaining from now
+            l[k]['reset'] = int(l[k]['reset'] - time.time())
         return l
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--sleep', type=int, default=30, help='interval to poll lists on')
+    parser.add_argument('--sleep', type=int, default=60, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
     parser.add_argument('--verbose', action='store_true', default=False, help='enable debugging output')
@@ -115,13 +117,13 @@ if __name__ == '__main__':
     next = -1
     while True:
         megachuds = conn.api.GetListMembers(slug=args.megachuds_list, owner_screen_name=conn.screen_name)
-        for megachud in megachuds:
-            if args.verbose:
-                if next < 0:
-                    sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
-                else:
-                    sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
-            next = conn.addFollowers(megachud, args.chuds_list, next=next, count=100, bulk=True)
+        megachud = megachuds[0] # pop first from list
+        if args.verbose:
+            if next < 0:
+                sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
+            else:
+                sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
+        next = conn.addFollowers(megachud, args.chuds_list, next=next, count=100, bulk=True)
 
         chuds = conn.api.GetListMembers(slug=args.chuds_list, owner_screen_name=conn.screen_name)
         for chud in chuds:
@@ -129,5 +131,6 @@ if __name__ == '__main__':
 
         if args.verbose:
             sys.stderr.write('bottom of the loop\n')
-            sys.stderr.write("%s\n\n" % conn.limits())
+            sys.stderr.write("chuds: %s megachuds: %s\n" % (len(chuds), len(megachuds)))
+            sys.stderr.write("%s\n\n" % json.dumps(conn.limits(), indent=2))
         time.sleep(args.sleep)
