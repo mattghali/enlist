@@ -61,7 +61,7 @@ class Connection(object):
         else:
             # finally, block megachud himself (which removes him from megachud list)
             if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
-            self.addToList(slug, user)
+            self.addToList(slug, user.id)
 
         return -1
 
