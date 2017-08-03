@@ -11,7 +11,7 @@ For every user added to the `megachuds` list:
  - All their followers are added to the `chuds` list to be blocked
  - Then they are too!
  
-All quietly in the background, while obeying Twitter's API rate limits. 
+All quietly in the background, while obeying Twitter's API rate limits. Lists turn out to function as a great queue of users to block: as soon as they are blocked, they vanish from lists, making lists perfect for keeping this tool's state, even across runs.
 
 ## Requirements
  - just the `twitter` python library `(pip install twitter)`
