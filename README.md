@@ -4,6 +4,13 @@ tool to manage twitter blocks via lists
 
 This is a simple script that can quietly run on your computer, or a spare EC2 instance somewhere. It watches lists you maintain in your Twitter account, and blocks users that you add to the lists. Additionally, it can block followers of the users you add too. The entire user interface is two private lists in your Twitter account.
 
+## How it works
+Every user added to the `chuds` list gets blocked.
+Every user added to the `megachuds` list:
+ - All their followers are added to the `chuds` list to be blocked
+ - Then they are too!
+All quietly in the background, while obeying Twitter's API rate limits. 
+
 Requirements:
  - just the `twitter` python library `(pip install twitter)`
 
