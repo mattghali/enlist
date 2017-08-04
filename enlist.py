@@ -75,7 +75,7 @@ class Connection(object):
 
     def getListMembers(self, slug):
         try:
-            return self.api.GetListsMembers(slug=slug, owner_screen_name=self.screen_name)
+            return self.api.getListsMembers(slug=slug, owner_screen_name=self.screen_name)
         except twitter.error.TwitterError, e:
             if self.args.verbose: sys.stderr.write("error: %s\n" % e)
             return []
