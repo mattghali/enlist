@@ -71,13 +71,18 @@ class Connection(object):
                                        owner_screen_name=self.screen_name)
         except twitter.error.TwitterError, e:
             if self.args.verbose: sys.stderr.write("error: %s\n" % e)
+        except requests.exceptions.SSLError, e:
+            if self.args.verbose: sys.stderr.write("ssl error: %s\n" % e)
 
 
     def getListMembers(self, slug):
         try:
-            return self.api.getListsMembers(slug=slug, owner_screen_name=self.screen_name)
+            return self.api.GetListMembers(slug=slug, owner_screen_name=self.screen_name)
         except twitter.error.TwitterError, e:
             if self.args.verbose: sys.stderr.write("error: %s\n" % e)
+            return []
+        except requests.exceptions.SSLError, e:
+            if self.args.verbose: sys.stderr.write("ssl error: %s\n" % e)
             return []
 
 
@@ -90,6 +95,8 @@ class Connection(object):
                 if self.args.verbose: sys.stderr.write("blocked: %s\n" % user.screen_name)
             except twitter.error.TwitterError, e:
                 if self.args.verbose: sys.stderr.write("exception: %s\n" % e)
+            except requests.exceptions.SSLError, e:
+                if self.args.verbose: sys.stderr.write("ssl error: %s\n" % e)
 
 
     def limits(self):
