@@ -73,6 +73,14 @@ class Connection(object):
             if self.args.verbose: sys.stderr.write("error: %s\n" % e)
 
 
+    def getListMembers(self, slug):
+        try:
+            return self.api.GetListsMembers(slug=slug, owner_screen_name=self.screen_name)
+        except twitter.error.TwitterError, e:
+            if self.args.verbose: sys.stderr.write("error: %s\n" % e)
+            return []
+
+
     def block(self, user):
         if user.following:
             if self.args.verbose: sys.stderr.write("tried to block a friend: %s\n" % user.screen_name)
@@ -93,12 +101,12 @@ class Connection(object):
                          l[ep] = resources[res][ep]
         for k in l:
             # convert to seconds remaining from now
-            l[k]['reset'] = int(l[k]['reset'] - time.time())
+            l[k]['reset'] = max(int(l[k]['reset'] - time.time()), 0)
         return l
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--sleep', type=int, default=60, help='interval to poll lists on')
+    parser.add_argument('--sleep', type=int, default=300, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
     parser.add_argument('--verbose', action='store_true', default=False, help='enable debugging output')
@@ -116,7 +124,7 @@ if __name__ == '__main__':
     # main loop
     next = -1
     while True:
-        megachuds = conn.api.GetListMembers(slug=args.megachuds_list, owner_screen_name=conn.screen_name)
+        megachuds = conn.getListMembers(slug=args.megachuds_list)
         megachud = megachuds[0] # pop first from list
         if args.verbose:
             if next < 0:
@@ -125,7 +133,7 @@ if __name__ == '__main__':
                 sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
         next = conn.addFollowers(megachud, args.chuds_list, next=next, count=100, bulk=True)
 
-        chuds = conn.api.GetListMembers(slug=args.chuds_list, owner_screen_name=conn.screen_name)
+        chuds = conn.getListMembers(slug=args.chuds_list)
         for chud in chuds:
             conn.block(chud)
 
