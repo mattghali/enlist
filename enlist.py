@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, json, os, sys, time
+import argparse, json, os, requests, sys, time
 from ConfigParser import SafeConfigParser
 import twitter
 
