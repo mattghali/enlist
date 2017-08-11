@@ -101,14 +101,12 @@ class Connection(object):
 
     def limits(self):
         l = dict()
-        resources = self.api.rate_limit.resources
+        resources = self.api.rate_limit.resources.copy()
         for res in resources:
             for ep in  resources[res]:
                 if resources[res][ep]['remaining'] < resources[res][ep]['limit']:
-                         l[ep] = resources[res][ep]
-        for k in l:
-            # convert to seconds remaining from now
-            l[k]['reset'] = max(int(l[k]['reset'] - time.time()), 0)
+                    l[ep] = resources[res][ep]
+                    l[ep]['reset'] = max(int(l[ep]['reset'] - time.time()), 0)
         return l
 
 if __name__ == '__main__':
@@ -138,7 +136,7 @@ if __name__ == '__main__':
                 sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
             else:
                 sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
-        next = conn.addFollowers(megachud, args.chuds_list, next=next, count=100, bulk=True)
+        next = conn.addFollowers(megachud, args.chuds_list, next=next, count=200, bulk=True)
 
         chuds = conn.getListMembers(slug=args.chuds_list)
         for chud in chuds:
