@@ -30,9 +30,10 @@ class Connection(object):
                           access_token_secret=self.access_token_secret)
 
         self.api.InitializeRateLimit()
+        self.listsWork = not args.no_lists
 
 
-    def addFollowers(self, user, slug, next=-1, count=200, bulk=False):
+    def addFollowers(self, user, slug, next=-1, count=100, bulk=True):
         if self.api.rate_limit.resources['followers']['/followers/list'].get('remaining', 15) == 0:
             if self.args.verbose: sys.stderr.write('out of rate limit credits, bailing\n')
             return next
@@ -42,8 +43,9 @@ class Connection(object):
                                                         skip_status=True,
                                                         user_id=user.id,
                                                         include_user_entities=False)
-        if bulk:
+        if bulk and self.listsWork:
             # adds 'count' at once, unless something fails
+            # limit seems to be 100 in list
             users = [ u.id for u in follow ]
             if self.args.verbose: sys.stderr.write("adding %s users\n" % len(users))
             self.addToList(slug, users)
@@ -51,8 +53,11 @@ class Connection(object):
         else:
             # adds one precious chud at a time
             for f in follow:
-                if self.args.verbose: sys.stderr.write("adding %s\n" % f.screen_name)
-                self.addToList(slug, f.id)
+                if self.listsWork:
+                    if self.args.verbose: sys.stderr.write("adding %s\n" % f.screen_name)
+                    self.addToList(slug, f.id)
+                else:
+                    self.block(f)
             
         if next:
             self.addFollowers(user, slug, next=next, count=count, bulk=bulk)
@@ -60,7 +65,10 @@ class Connection(object):
         else:
             # finally, block megachud himself (which removes him from megachud list)
             if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
-            self.addToList(slug, user.id)
+            if self.listsWork:
+                self.addToList(slug, user.id)
+            else:
+                self.block(user)
 
         return -1
 
@@ -69,8 +77,10 @@ class Connection(object):
         try:
             self.api.CreateListsMember(slug=slug, user_id=user,
                                        owner_screen_name=self.screen_name)
+            self.listsWork = True
         except twitter.error.TwitterError, e:
             if self.args.verbose: sys.stderr.write("error: %s\n" % e)
+            self.listsWork = False
         except requests.exceptions.SSLError, e:
             if self.args.verbose: sys.stderr.write("ssl error: %s\n" % e)
 
@@ -114,6 +124,7 @@ if __name__ == '__main__':
     parser.add_argument('--sleep', type=int, default=300, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
+    parser.add_argument('--no-lists', action='store_true', default=False, help='lists are not available for this account')
     parser.add_argument('--verbose', action='store_true', default=False, help='enable debugging output')
     args = parser.parse_args()
 
@@ -130,19 +141,23 @@ if __name__ == '__main__':
     next = -1
     while True:
         megachuds = conn.getListMembers(slug=args.megachuds_list)
-        megachud = megachuds[0] # pop first from list
-        if args.verbose:
-            if next < 0:
-                sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
-            else:
-                sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
-        next = conn.addFollowers(megachud, args.chuds_list, next=next, count=200, bulk=True)
+        if megachuds:
+            megachud = megachuds[0] # pop first from list
+            if args.verbose:
+                if next < 0:
+                    sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
+                else:
+                    sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
+            next = conn.addFollowers(megachud, args.chuds_list, next=next, bulk=True)
 
         chuds = conn.getListMembers(slug=args.chuds_list)
         for chud in chuds:
             conn.block(chud)
 
         if args.verbose:
+            megachuds = conn.getListMembers(slug=args.megachuds_list)
+            chuds = conn.getListMembers(slug=args.chuds_list)
+
             sys.stderr.write('bottom of the loop\n')
             sys.stderr.write("chuds: %s megachuds: %s\n" % (len(chuds), len(megachuds)))
             sys.stderr.write("%s\n\n" % json.dumps(conn.limits(), indent=2))
