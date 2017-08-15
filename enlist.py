@@ -111,6 +111,7 @@ class Connection(object):
 
     def limits(self):
         l = dict()
+        self.api.InitializeRateLimit()
         resources = self.api.rate_limit.resources.copy()
         for res in resources:
             for ep in  resources[res]:
