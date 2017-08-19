@@ -14,7 +14,7 @@ For every user added to the `megachuds` list:
 All quietly in the background, while obeying Twitter's API rate limits. Lists turn out to function as a great queue of users to block: as soon as they are blocked, they vanish from lists, making lists perfect for keeping this tool's state, even across runs.
 
 ## Requirements
- - just the `twitter` python library `(pip install twitter)`
+ - just the `twitter` python library `(pip install python-twitter)`
 
 ## Configuration
 You'll need a config file named `.twitter` in your home directory, which looks like this:
