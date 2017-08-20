@@ -30,6 +30,7 @@ access_token_secret: (your access token secret)
 You can genereate consumer keys and access tokens for your account at https://apps.twitter.com/
 
 ## Command line arguments
+Defaults should be fine for most use, but available arguments are:
 ```
   --sleep SLEEP         interval to poll lists on (default 30)
   --chuds-list CHUDS_LIST
