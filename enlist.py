@@ -120,7 +120,11 @@ if __name__ == '__main__':
                     sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
                 else:
                     sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
-            next = conn.addFollowers(megachud, args.chuds_list, next=next)
+            try:
+                next = conn.addFollowers(megachud, args.chuds_list, next=next)
+            except twitter.error.TwitterError, e:
+                # 'not authorized' error listing followers..
+                conn.block(megachud)
 
         chuds = conn.getListMembers(slug=args.chuds_list)
         for chud in chuds:
