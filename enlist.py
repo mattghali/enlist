@@ -30,12 +30,11 @@ class Connection(object):
                           access_token_secret=self.access_token_secret)
 
         self.api.InitializeRateLimit()
-        self.listsWork = not args.no_lists
 
 
-    def addFollowers(self, user, slug, next=-1, count=100, bulk=True):
+    def addFollowers(self, user, slug, next=-1, count=250):
         if self.api.rate_limit.resources['followers']['/followers/list'].get('remaining', 15) == 0:
-            if self.args.verbose: sys.stderr.write('out of rate limit credits, bailing\n')
+            sys.stderr.write('out of rate limit credits, bailing\n')
             return next
 
         (next, prev, follow) = self.api.GetFollowersPaged(cursor=next,
@@ -43,70 +42,42 @@ class Connection(object):
                                                         skip_status=True,
                                                         user_id=user.id,
                                                         include_user_entities=False)
-        if bulk and self.listsWork:
-            # adds 'count' at once, unless something fails
-            # limit seems to be 100 in list
-            users = [ u.id for u in follow ]
-            if self.args.verbose: sys.stderr.write("adding %s users\n" % len(users))
-            self.addToList(slug, users)
 
-        else:
-            # adds one precious chud at a time
-            for f in follow:
-                if self.listsWork:
-                    if self.args.verbose: sys.stderr.write("adding %s\n" % f.screen_name)
-                    self.addToList(slug, f.id)
-                else:
-                    self.block(f)
+        for f in follow:
+            self.block(f)
             
         if next:
-            self.addFollowers(user, slug, next=next, count=count, bulk=bulk)
+            self.addFollowers(user, slug, next=next, count=count)
 
         else:
-            # finally, block megachud himself (which removes him from megachud list)
             if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
-            if self.listsWork:
-                self.addToList(slug, user.id)
-            else:
-                self.block(user)
+            self.block(user)
 
         return -1
-
-
-    def addToList(self, slug, user):
-        try:
-            self.api.CreateListsMember(slug=slug, user_id=user,
-                                       owner_screen_name=self.screen_name)
-            self.listsWork = True
-        except twitter.error.TwitterError, e:
-            if self.args.verbose: sys.stderr.write("error: %s\n" % e)
-            self.listsWork = False
-        except requests.exceptions.SSLError, e:
-            if self.args.verbose: sys.stderr.write("ssl error: %s\n" % e)
 
 
     def getListMembers(self, slug):
         try:
             return self.api.GetListMembers(slug=slug, owner_screen_name=self.screen_name)
         except twitter.error.TwitterError, e:
-            if self.args.verbose: sys.stderr.write("error: %s\n" % e)
+            sys.stderr.write("error: %s\n" % e)
             return []
         except requests.exceptions.SSLError, e:
-            if self.args.verbose: sys.stderr.write("ssl error: %s\n" % e)
+            sys.stderr.write("ssl error: %s\n" % e)
             return []
 
 
     def block(self, user):
         if user.following:
-            if self.args.verbose: sys.stderr.write("tried to block a friend: %s\n" % user.screen_name)
+            sys.stderr.write("tried to block a friend: %s\n" % user.screen_name)
         else:
             try:
                 self.api.CreateBlock(user_id=user.id, include_entities=False, skip_status=True)
                 if self.args.verbose: sys.stderr.write("blocked: %s\n" % user.screen_name)
             except twitter.error.TwitterError, e:
-                if self.args.verbose: sys.stderr.write("exception: %s\n" % e)
+                sys.stderr.write("exception: %s\n" % e)
             except requests.exceptions.SSLError, e:
-                if self.args.verbose: sys.stderr.write("ssl error: %s\n" % e)
+                sys.stderr.write("ssl error: %s\n" % e)
 
 
     def limits(self):
@@ -122,11 +93,10 @@ class Connection(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--sleep', type=int, default=300, help='interval to poll lists on')
+    parser.add_argument('--sleep', type=int, default=30, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
-    parser.add_argument('--no-lists', action='store_true', default=False, help='lists are not available for this account')
-    parser.add_argument('--verbose', action='store_true', default=False, help='enable debugging output')
+    parser.add_argument('--verbose', action='store_true', default=True, help='enable debugging output')
     args = parser.parse_args()
 
     conn = Connection(args)
@@ -136,7 +106,7 @@ if __name__ == '__main__':
     for i in [ args.chuds_list, args.megachuds_list ]:
         if i not in [ l.slug for l in lists ]:
             conn.api.CreateList(i, mode='private')
-            if args.verbose: sys.stderr.write("created list: %s\n" % i)
+            stderr.write("created list: %s\n" % i)
 
     # main loop
     next = -1
@@ -149,7 +119,7 @@ if __name__ == '__main__':
                     sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
                 else:
                     sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
-            next = conn.addFollowers(megachud, args.chuds_list, next=next, bulk=True)
+            next = conn.addFollowers(megachud, args.chuds_list, next=next)
 
         chuds = conn.getListMembers(slug=args.chuds_list)
         for chud in chuds:
