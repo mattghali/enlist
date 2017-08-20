@@ -8,7 +8,7 @@ This is a simple script that can quietly run on your computer, or a spare EC2 in
 Every user added to the `chuds` list gets blocked.
 
 For every user added to the `megachuds` list:
- - All their followers are added to the `chuds` list to be blocked
+ - All their followers are blocked.
  - Then they are too!
  
 All quietly in the background, while obeying Twitter's API rate limits. Lists turn out to function as a great queue of users to block: as soon as they are blocked, they vanish from lists, making lists perfect for keeping this tool's state, even across runs.
