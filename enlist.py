@@ -43,6 +43,7 @@ class Connection(object):
                                                         user_id=user.id,
                                                         include_user_entities=False)
 
+        if self.args.verbose: sys.stderr.write("requested %s, got %s\n" % (count, len(follow))
         for f in follow:
             self.block(f)
             
