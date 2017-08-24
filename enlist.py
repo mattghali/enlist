@@ -33,7 +33,8 @@ class Connection(object):
 
 
     def addFollowers(self, user, slug, next=-1, count=250):
-        if self.api.rate_limit.resources['followers']['/followers/list'].get('remaining', 15) == 0:
+        remaining = self.api.rate_limit.resources['followers']['/followers/list'].get('remaining', 15)
+        if remaining == 0:
             sys.stderr.write('out of rate limit credits, bailing\n')
             return next
 
@@ -43,7 +44,7 @@ class Connection(object):
                                                         user_id=user.id,
                                                         include_user_entities=False)
 
-        if self.args.verbose: sys.stderr.write("requested %s, got %s\n" % (count, len(follow)))
+        if self.args.verbose: sys.stderr.write("requested %s, got %s (credits remaining: %s)\n" % (count, len(follow), remaining))
         for f in follow:
             self.block(f)
             
