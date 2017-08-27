@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import argparse, json, os, requests, sys, time
+import json, os, requests, sys, time
+from argparse import ArgumentParser
 from ConfigParser import SafeConfigParser
 import twitter
 
@@ -94,7 +95,7 @@ class Connection(object):
         return l
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = ArgumentParser(description=__doc__)
     parser.add_argument('--sleep', type=int, default=30, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
@@ -115,12 +116,12 @@ if __name__ == '__main__':
     while True:
         megachuds = conn.getListMembers(slug=args.megachuds_list)
         if megachuds:
-            megachud = megachuds[0] # pop first from list
+            megachud = megachuds[-1] # pop oldest from list
             if args.verbose:
                 if next < 0:
-                    sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
+                    sys.stderr.write("adding megachud %s (%s followers)\n" % (megachud.screen_name, megachud.followers_count))
                 else:
-                    sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
+                    sys.stderr.write("continuing megachud %s (%s followers)\n" % (megachud.screen_name, megachud.followers_count))
             try:
                 next = conn.addFollowers(megachud, args.chuds_list, next=next)
             except twitter.error.TwitterError, e:
