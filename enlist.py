@@ -114,19 +114,21 @@ if __name__ == '__main__':
     # main loop
     next = -1
     while True:
-        megachuds = conn.getListMembers(slug=args.megachuds_list)
-        if megachuds:
-            megachud = megachuds[-1] # pop oldest from list
-            if args.verbose:
-                if next < 0:
+        if next == -1:
+            megachuds = conn.getListMembers(slug=args.megachuds_list)
+            if megachuds:
+                megachud = megachuds[0]
+                if args.verbose:
                     sys.stderr.write("adding megachud %s (%s followers)\n" % (megachud.screen_name, megachud.followers_count))
-                else:
-                    sys.stderr.write("continuing megachud %s (%s followers)\n" % (megachud.screen_name, megachud.followers_count))
-            try:
-                next = conn.addFollowers(megachud, args.chuds_list, next=next)
-            except twitter.error.TwitterError, e:
-                # 'not authorized' error listing followers..
-                conn.block(megachud)
+        else:
+            if args.verbose:
+                sys.stderr.write("continuing megachud %s (%s followers)\n" % (megachud.screen_name, megachud.followers_count))
+
+        try:
+            next = conn.addFollowers(megachud, args.chuds_list, next=next)
+        except twitter.error.TwitterError, e:
+            # 'not authorized' error listing followers..
+            conn.block(megachud)
 
         chuds = conn.getListMembers(slug=args.chuds_list)
         for chud in chuds:
