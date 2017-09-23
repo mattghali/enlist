@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import argparse, json, os, requests, sys, time
+import argparse, json, logging, os, requests, sys, time
 from ConfigParser import SafeConfigParser
 import twitter
 
@@ -35,6 +35,7 @@ class Connection(object):
     def addFollowers(self, user, slug, next=-1, count=250):
         if self.api.rate_limit.resources['followers']['/followers/list'].get('remaining', 15) == 0:
             sys.stderr.write('out of rate limit credits, bailing\n')
+            print "+++ returning next is %s" % next
             return next
 
         (next, prev, follow) = self.api.GetFollowersPaged(cursor=next,
@@ -43,7 +44,7 @@ class Connection(object):
                                                         user_id=user.id,
                                                         include_user_entities=False)
 
-        if self.args.verbose: sys.stderr.write("requested %s, got %s\n" % (count, len(follow)))
+        if self.args.verbose: sys.stderr.write("next: %s, requested %s, got %s\n" % (next, count, len(follow)))
         for f in follow:
             self.block(f)
             
@@ -53,8 +54,7 @@ class Connection(object):
         else:
             if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
             self.block(user)
-
-        return -1
+            return -1
 
 
     def getListMembers(self, slug):
@@ -100,6 +100,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true', default=True, help='enable debugging output')
     args = parser.parse_args()
 
+
     conn = Connection(args)
 
     # initialization
@@ -112,19 +113,23 @@ if __name__ == '__main__':
     # main loop
     next = -1
     while True:
-        megachuds = conn.getListMembers(slug=args.megachuds_list)
-        if megachuds:
-            megachud = megachuds[0] # pop first from list
+        if next == -1:
+            megachuds = conn.getListMembers(slug=args.megachuds_list)
+            if megachuds:
+                megachud = megachuds[0] # pop first from list
             if args.verbose:
-                if next < 0:
-                    sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
-                else:
-                    sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
-            try:
-                next = conn.addFollowers(megachud, args.chuds_list, next=next)
-            except twitter.error.TwitterError, e:
-                # 'not authorized' error listing followers..
-                conn.block(megachud)
+                sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
+        else:
+            if args.verbose:
+                sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
+
+        try:
+            print "+++ next was %s" % next
+            next = conn.addFollowers(megachud, args.chuds_list, next=next)
+            print "+++ got next is %s" % next
+        except twitter.error.TwitterError, e:
+            # 'not authorized' error listing followers..
+            conn.block(megachud)
 
         chuds = conn.getListMembers(slug=args.chuds_list)
         for chud in chuds:
