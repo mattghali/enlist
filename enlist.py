@@ -31,30 +31,32 @@ class Connection(object):
 
         self.api.InitializeRateLimit()
 
+        lists = self.api.GetLists()
+        for i in [ args.chuds_list, args.megachuds_list ]:
+            if i not in [ l.slug for l in lists ]:
+                self.api.CreateList(i, mode='private')
+                logging.info("created list: %s\n" % i)
 
-    def addFollowers(self, user, slug, next=-1, count=250):
-        if self.api.rate_limit.resources['followers']['/followers/list'].get('remaining', 15) == 0:
-            sys.stderr.write('out of rate limit credits, bailing\n')
-            print "+++ returning next is %s" % next
-            return next
+        self.megachud = None
+        self.cursor = -1
 
-        (next, prev, follow) = self.api.GetFollowersPaged(cursor=next,
-                                                        count=count,
-                                                        skip_status=True,
-                                                        user_id=user.id,
-                                                        include_user_entities=False)
 
-        if self.args.verbose: sys.stderr.write("next: %s, requested %s, got %s\n" % (next, count, len(follow)))
+
+    def addFollowers(self, user, slug):
+        (self.cursor, prev, follow) = self.api.GetFollowersPaged(cursor=self.cursor,
+                                                                count=100,
+                                                                skip_status=True,
+                                                                user_id=user.id,
+                                                                include_user_entities=False)
+
+        if self.args.verbose: sys.stderr.write("cursor: %s, requested %s, got %s\n" % (self.cursor, 100, len(follow)))
         for f in follow:
             self.block(f)
             
-        if next:
-            self.addFollowers(user, slug, next=next, count=count)
-
-        else:
+        if self.cursor == 0:
             if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
             self.block(user)
-            return -1
+            self.megachud = None
 
 
     def getListMembers(self, slug):
@@ -92,6 +94,27 @@ class Connection(object):
                     l[ep]['reset'] = max(int(l[ep]['reset'] - time.time()), 0)
         return l
 
+
+    def check_limit(self, resource='friends', ep='/followers/list'):
+        res = self.api.rate_limit.resources.get(resource, {})
+        status = res.get(ep, {})
+        return status.get('remaining', 15) > 0
+
+    def block_chuds(self):
+        chuds = self.getListMembers(slug=args.chuds_list)
+        for chud in chuds:
+            conn.block(chud)
+
+    def block_megachuds(self):
+        if not self.megachud:
+            megachuds = conn.getListMembers(slug=args.megachuds_list)
+            if megachuds:
+                self.megachud = megachuds[0] # pop first from list
+
+        if self.megachud and self.check_limit():
+            conn.addFollowers(self.megachud, args.chuds_list)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sleep', type=int, default=30, help='interval to poll lists on')
@@ -100,45 +123,16 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true', default=True, help='enable debugging output')
     args = parser.parse_args()
 
-
     conn = Connection(args)
 
-    # initialization
-    lists = conn.api.GetLists()
-    for i in [ args.chuds_list, args.megachuds_list ]:
-        if i not in [ l.slug for l in lists ]:
-            conn.api.CreateList(i, mode='private')
-            stderr.write("created list: %s\n" % i)
-
     # main loop
-    next = -1
     while True:
-        if next == -1:
-            megachuds = conn.getListMembers(slug=args.megachuds_list)
-            if megachuds:
-                megachud = megachuds[0] # pop first from list
-            if args.verbose:
-                sys.stderr.write("adding megachud %s\n" % megachud.screen_name)
-        else:
-            if args.verbose:
-                sys.stderr.write("continuing megachud %s\n" % megachud.screen_name)
-
-        try:
-            print "+++ next was %s" % next
-            next = conn.addFollowers(megachud, args.chuds_list, next=next)
-            print "+++ got next is %s" % next
-        except twitter.error.TwitterError, e:
-            # 'not authorized' error listing followers..
-            conn.block(megachud)
-
-        chuds = conn.getListMembers(slug=args.chuds_list)
-        for chud in chuds:
-            conn.block(chud)
+        conn.block_chuds()
+        conn.block_megachuds()
 
         if args.verbose:
             megachuds = conn.getListMembers(slug=args.megachuds_list)
             chuds = conn.getListMembers(slug=args.chuds_list)
-
             sys.stderr.write('bottom of the loop\n')
             sys.stderr.write("chuds: %s megachuds: %s\n" % (len(chuds), len(megachuds)))
             sys.stderr.write("%s\n\n" % json.dumps(conn.limits(), indent=2))

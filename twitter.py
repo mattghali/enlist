@@ -77,6 +77,7 @@ class Api(object):
             followers.append(TUser('Follower', cursor))
             cursor += 1
         logging.debug("cursor returned: %s" % cursor)
+        if cursor > 10: cursor = 0
         return (cursor, 0, followers)
 
     def CreateBlock(self, **kwargs):
