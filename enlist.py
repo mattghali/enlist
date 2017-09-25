@@ -42,14 +42,14 @@ class Connection(object):
 
 
 
-    def addFollowers(self, user, slug):
+    def addFollowers(self, user, slug, count=200):
         (self.cursor, prev, follow) = self.api.GetFollowersPaged(cursor=self.cursor,
-                                                                count=150,
+                                                                count=count,
                                                                 skip_status=True,
                                                                 user_id=user.id,
                                                                 include_user_entities=False)
 
-        if self.args.verbose: sys.stderr.write("cursor: %s, requested %s, got %s\n" % (self.cursor, 100, len(follow)))
+        if self.args.verbose: sys.stderr.write("cursor: %s, requested %s, got %s\n" % (self.cursor, count, len(follow)))
         for f in follow:
             self.block(f)
             
