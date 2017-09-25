@@ -44,7 +44,7 @@ class Connection(object):
 
     def addFollowers(self, user, slug):
         (self.cursor, prev, follow) = self.api.GetFollowersPaged(cursor=self.cursor,
-                                                                count=100,
+                                                                count=150,
                                                                 skip_status=True,
                                                                 user_id=user.id,
                                                                 include_user_entities=False)
@@ -57,6 +57,7 @@ class Connection(object):
             if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
             self.block(user)
             self.megachud = None
+            self.cursor = -1
 
 
     def getListMembers(self, slug):
