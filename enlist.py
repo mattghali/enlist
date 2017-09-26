@@ -43,19 +43,27 @@ class Connection(object):
 
 
     def addFollowers(self, user, slug, count=200):
-        (self.cursor, prev, follow) = self.api.GetFollowersPaged(cursor=self.cursor,
+        try:
+            (self.cursor, prev, follow) = self.api.GetFollowersPaged(cursor=self.cursor,
                                                                 count=count,
                                                                 skip_status=True,
                                                                 user_id=user.id,
                                                                 include_user_entities=False)
 
-        if self.args.verbose: sys.stderr.write("cursor: %s, requested %s, got %s\n" % (self.cursor, count, len(follow)))
-        for f in follow:
-            self.block(f)
+            if self.args.verbose:
+                sys.stderr.write("cursor: %s, requested %s, got %s\n" % (self.cursor, count, len(follow)))
+
+            for f in follow:
+                self.block(f)
             
-        if self.cursor == 0:
-            if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
-            self.block(user)
+            if self.cursor == 0:
+                if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
+                self.block(user)
+                self.megachud = None
+                self.cursor = -1
+
+        except twitter.error.TwitterError, e:
+            sys.stderr.write("error, skipping %s: %s\n" % e, self.megachud)
             self.megachud = None
             self.cursor = -1
 
@@ -128,6 +136,7 @@ if __name__ == '__main__':
 
     # main loop
     while True:
+        sys.stderr.write("%s\n\n" % json.dumps(conn.limits(), indent=2))
         conn.block_chuds()
         conn.block_megachuds()
 
