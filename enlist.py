@@ -63,7 +63,7 @@ class Connection(object):
                 self.cursor = -1
 
         except twitter.error.TwitterError, e:
-            sys.stderr.write("error, skipping %s: %s\n" % e, self.megachud)
+            sys.stderr.write("error, skipping %s: %s\n" % (e, self.megachud))
             self.megachud = None
             self.cursor = -1
 
