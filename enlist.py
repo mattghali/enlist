@@ -126,7 +126,7 @@ class Connection(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--sleep', type=int, default=30, help='interval to poll lists on')
+    parser.add_argument('--sleep', type=int, default=5, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
     parser.add_argument('--verbose', action='store_true', default=True, help='enable debugging output')
