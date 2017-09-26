@@ -63,7 +63,7 @@ class Connection(object):
                 self.cursor = -1
 
         except twitter.error.TwitterError, e:
-            sys.stderr.write("error, skipping %s: %s\n" % (e, self.megachud))
+            sys.stderr.write("error, skipping %s: %s\n" % (self.megachud, e))
             self.megachud = None
             self.cursor = -1
 
@@ -104,7 +104,7 @@ class Connection(object):
         return l
 
 
-    def check_limit(self, resource='friends', ep='/followers/list'):
+    def check_limit(self, resource='followers', ep='/followers/list'):
         res = self.api.rate_limit.resources.get(resource, {})
         status = res.get(ep, {})
         return status.get('remaining', 15) > 0
