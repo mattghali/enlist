@@ -123,10 +123,10 @@ class Connection(object):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--sleep', type=int, default=5, help='interval to poll lists on')
+    parser.add_argument('--sleep', type=int, default=30, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
-    parser.add_argument('--verbose', action='store_true', default=True, help='enable debugging output')
+    parser.add_argument('--verbose', action='store_true', default=False, help='enable debugging output')
     args = parser.parse_args()
 
     if args.verbose:
@@ -151,7 +151,6 @@ if __name__ == '__main__':
         if args.verbose:
             megachuds = conn.getListMembers(slug=args.megachuds_list)
             chuds = conn.getListMembers(slug=args.chuds_list)
-            logging.info('bottom of the loop')
             logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
             logging.info("%s\n" % json.dumps(conn.limits(), indent=2))
-        time.sleep(args.sleep)
+        if not conn.megachud: time.sleep(args.sleep)
