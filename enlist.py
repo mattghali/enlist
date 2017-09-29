@@ -63,7 +63,8 @@ class Connection(object):
                 self.cursor = -1
 
         except twitter.error.TwitterError, e:
-            sys.stderr.write("error, skipping %s: %s\n" % (self.megachud, e))
+            sys.stderr.write("error, skipping %s: %s\n" % (user.screen_name, e))
+            self.block(user)
             self.megachud = None
             self.cursor = -1
 
@@ -72,10 +73,10 @@ class Connection(object):
         try:
             return self.api.GetListMembers(slug=slug, owner_screen_name=self.screen_name)
         except twitter.error.TwitterError, e:
-            sys.stderr.write("error: %s\n" % e)
+            sys.stderr.write("twitter exception: %s\n" % e)
             return []
-        except requests.exceptions.SSLError, e:
-            sys.stderr.write("ssl error: %s\n" % e)
+        except requests.exceptions.RequestException, e:
+            sys.stderr.write("http request error: %s\n" % e)
             return []
 
 
@@ -87,9 +88,9 @@ class Connection(object):
                 self.api.CreateBlock(user_id=user.id, include_entities=False, skip_status=True)
                 if self.args.verbose: sys.stderr.write("blocked: %s\n" % user.screen_name)
             except twitter.error.TwitterError, e:
-                sys.stderr.write("exception: %s\n" % e)
-            except requests.exceptions.SSLError, e:
-                sys.stderr.write("ssl error: %s\n" % e)
+                sys.stderr.write("twitter exception: %s\n" % e)
+            except requests.exceptions.RequestException, e:
+                sys.stderr.write("http request error: %s\n" % e)
 
 
     def limits(self):
@@ -136,7 +137,6 @@ if __name__ == '__main__':
 
     # main loop
     while True:
-        sys.stderr.write("%s\n\n" % json.dumps(conn.limits(), indent=2))
         conn.block_chuds()
         conn.block_megachuds()
 
