@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
-import argparse, json, logging, os, requests, sys, time
+import json, logging, os, requests, time
+from argparse import ArgumentParser
 from ConfigParser import SafeConfigParser
 import twitter
 
 class Connection(object):
     def __init__(self, args):
         self.args = args
-        # read in environment variables for config file and section
+        self.megachud = None
+        self.cursor = -1
+
+        # Read in environment variables for config file and section
         self.vars = (('TWITTER_CONFIG_FILE', 'cfg_path', os.path.join(os.environ['HOME'], '.twitter')),
                     ('TWITTER_CONFIG_PROFILE', 'cfg_section', 'DEFAULT'))
 
@@ -23,6 +27,7 @@ class Connection(object):
             for (name, value) in parser.items(self.cfg_section):
                 setattr(self, name, value)
 
+        # Create api cxn to twitter
         self.api = twitter.Api(sleep_on_rate_limit=True,
                           consumer_key=self.consumer_key,
                           consumer_secret=self.consumer_secret,
@@ -30,16 +35,6 @@ class Connection(object):
                           access_token_secret=self.access_token_secret)
 
         self.api.InitializeRateLimit()
-
-        lists = self.api.GetLists()
-        for i in [ args.chuds_list, args.megachuds_list ]:
-            if i not in [ l.slug for l in lists ]:
-                self.api.CreateList(i, mode='private')
-                logging.info("created list: %s\n" % i)
-
-        self.megachud = None
-        self.cursor = -1
-
 
 
     def addFollowers(self, user, slug, count=200):
@@ -50,55 +45,54 @@ class Connection(object):
                                                                 user_id=user.id,
                                                                 include_user_entities=False)
 
-            if self.args.verbose:
-                sys.stderr.write("cursor: %s, requested %s, got %s\n" % (self.cursor, count, len(follow)))
+            logging.info("cursor: %s, requested %s, got %s" % (self.cursor, count, len(follow)))
 
             for f in follow:
                 self.block(f)
             
             if self.cursor == 0:
-                if self.args.verbose: sys.stderr.write("finally adding %s\n" % user.screen_name)
+                logging.info("finally adding %s" % user.screen_name)
                 self.block(user)
                 self.megachud = None
                 self.cursor = -1
 
-        except twitter.error.TwitterError, e:
-            sys.stderr.write("error, skipping %s: %s\n" % (user.screen_name, e))
-            self.block(user)
-            self.megachud = None
-            self.cursor = -1
+        except twitter.error.TwitterError:
+            logging.exception("error listing %s" % user.screen_name)
+          # self.block(user)
+          # self.megachud = None
+          # self.cursor = -1
 
 
     def getListMembers(self, slug):
         try:
             return self.api.GetListMembers(slug=slug, owner_screen_name=self.screen_name)
-        except twitter.error.TwitterError, e:
-            sys.stderr.write("twitter exception: %s\n" % e)
+        except twitter.error.TwitterError:
+            logging.exception("twitter exception")
             return []
-        except requests.exceptions.RequestException, e:
-            sys.stderr.write("http request error: %s\n" % e)
+        except requests.exceptions.RequestException:
+            logging.exception("requests exception")
             return []
 
 
     def block(self, user):
         if user.following:
-            sys.stderr.write("tried to block a friend: %s\n" % user.screen_name)
+            logging.warn("tried to block a friend: %s" % user.screen_name)
         else:
             try:
                 self.api.CreateBlock(user_id=user.id, include_entities=False, skip_status=True)
-                if self.args.verbose: sys.stderr.write("blocked: %s\n" % user.screen_name)
-            except twitter.error.TwitterError, e:
-                sys.stderr.write("twitter exception: %s\n" % e)
-            except requests.exceptions.RequestException, e:
-                sys.stderr.write("http request error: %s\n" % e)
+                logging.info("blocked: %s" % user.screen_name)
+            except twitter.error.TwitterError:
+                logging.exception("twitter exception")
+            except requests.exceptions.RequestException:
+                logging.exception("requests exception")
 
 
     def limits(self):
-        l = dict()
         self.api.InitializeRateLimit()
         resources = self.api.rate_limit.resources.copy()
+        l = dict()
         for res in resources:
-            for ep in  resources[res]:
+            for ep in resources[res]:
                 if resources[res][ep]['remaining'] < resources[res][ep]['limit']:
                     l[ep] = resources[res][ep]
                     l[ep]['reset'] = max(int(l[ep]['reset'] - time.time()), 0)
@@ -110,30 +104,44 @@ class Connection(object):
         status = res.get(ep, {})
         return status.get('remaining', 15) > 0
 
+
     def block_chuds(self):
         chuds = self.getListMembers(slug=args.chuds_list)
         for chud in chuds:
             conn.block(chud)
 
+
     def block_megachuds(self):
         if not self.megachud:
             megachuds = conn.getListMembers(slug=args.megachuds_list)
             if megachuds:
-                self.megachud = megachuds[0] # pop first from list
+                self.megachud = megachuds[0]
 
         if self.megachud and self.check_limit():
             conn.addFollowers(self.megachud, args.chuds_list)
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = ArgumentParser(description=__doc__)
     parser.add_argument('--sleep', type=int, default=5, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
     parser.add_argument('--verbose', action='store_true', default=True, help='enable debugging output')
     args = parser.parse_args()
 
+    if args.verbose:
+        level = logging.INFO
+    else:
+        level = logging.WARN
+    logging.basicConfig(level=level, format='%(message)s')
+
     conn = Connection(args)
+
+    lists = conn.api.GetLists()
+    for i in [ args.chuds_list, args.megachuds_list ]:
+        if i not in [ l.slug for l in lists ]:
+            conn.api.CreateList(i, mode='private')
+            logging.info("created list: %s" % i)
 
     # main loop
     while True:
@@ -143,7 +151,7 @@ if __name__ == '__main__':
         if args.verbose:
             megachuds = conn.getListMembers(slug=args.megachuds_list)
             chuds = conn.getListMembers(slug=args.chuds_list)
-            sys.stderr.write('bottom of the loop\n')
-            sys.stderr.write("chuds: %s megachuds: %s\n" % (len(chuds), len(megachuds)))
-            sys.stderr.write("%s\n\n" % json.dumps(conn.limits(), indent=2))
+            logging.info('bottom of the loop')
+            logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
+            logging.info("%s\n" % json.dumps(conn.limits(), indent=2))
         time.sleep(args.sleep)
