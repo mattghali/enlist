@@ -108,17 +108,17 @@ class Connection(object):
     def block_chuds(self):
         chuds = self.getListMembers(slug=args.chuds_list)
         for chud in chuds:
-            conn.block(chud)
+            self.block(chud)
 
 
     def block_megachuds(self):
         if not self.megachud:
-            megachuds = conn.getListMembers(slug=args.megachuds_list)
+            megachuds = self.getListMembers(slug=args.megachuds_list)
             if megachuds:
                 self.megachud = megachuds[0]
 
         if self.megachud and self.check_limit():
-            conn.addFollowers(self.megachud, args.chuds_list)
+            self.addFollowers(self.megachud, args.chuds_list)
 
 
 if __name__ == '__main__':
