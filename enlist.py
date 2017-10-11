@@ -78,7 +78,7 @@ class Connection(object):
                 self.block(f)
             
             if self.state.cursor == 0:
-                logging.info("finally adding %s" % user.screen_name)
+                logging.warn("blocked megachud %s" % user.screen_name)
                 self.block(user)
                 self.state.megachud = None
                 self.state.cursor = -1
