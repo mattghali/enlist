@@ -11,6 +11,7 @@ class State(object):
         self.megachud = None
         self.cursor = -1
         self.blocked = []
+        self.exc_type, self.exc_value = (None, None)
 
 class Connection(object):
     def __init__(self, args):
@@ -36,7 +37,14 @@ class Connection(object):
     def __enter__(self):
         if os.path.exists(self.statefile):
             logging.info("reading statefile %s" % self.statefile)
-            self.state = pickle.load(open(self.statefile, 'rb'))
+            try:
+                self.state = pickle.load(open(self.statefile, 'rb'))
+            except:
+                self.state = State()
+
+            if self.state.__dict__.get('exc_type', False):
+                logging.warn("recovered from an %s exception: %s" % (self.state.exc_type, self.state.exc_value))
+                self.state.exc_type, self.state.exc_value = (None, None)
         else:
             self.state = State()
 
@@ -49,7 +57,7 @@ class Connection(object):
 
         self.api.InitializeRateLimit()
 
-        if not self.state.blocked:
+        if not self.state.blocked or self.args.rebuild_blocks:
             logging.warn("building list of blocked accounts. this takes a while but only happens once")
             self.state.blocked = self.api.GetBlocksIDs()
             logging.warn("done!")
@@ -58,6 +66,8 @@ class Connection(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         try:
+            self.state.exc_type = exc_type
+            self.state.exc_value = exc_value
             logging.info("writing statefile %s" % self.statefile)
             pickle.dump(self.state, open(self.statefile, 'wb'))
         except:
@@ -153,6 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('--sleep', type=int, default=30, help='interval to poll lists on')
     parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
     parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
+    parser.add_argument('--rebuild-blocks', action='store_true', default=False, help='rebuild internal list of blocked accts')
     parser.add_argument('--verbose', action='store_true', default=False, help='enable debugging output')
     args = parser.parse_args()
 
