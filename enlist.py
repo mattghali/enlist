@@ -180,4 +180,4 @@ if __name__ == '__main__':
                 logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
                 logging.info("%s\n" % json.dumps(conn.limits(), indent=2))
 
-            if not conn.state.megachud: time.sleep(args.sleep)
+            if not conn.check_limit(): time.sleep(args.sleep)
