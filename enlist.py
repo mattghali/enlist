@@ -3,17 +3,23 @@
 import json, logging, os, requests, time
 from argparse import ArgumentParser
 from ConfigParser import SafeConfigParser
+import cPickle as pickle
 import twitter
+
+class State(object):
+    def __init__(self):
+        self.megachud = None
+        self.cursor = -1
+        self.blocked = []
 
 class Connection(object):
     def __init__(self, args):
         self.args = args
-        self.megachud = None
-        self.cursor = -1
 
         # Read in environment variables for config file and section
         self.vars = (('TWITTER_CONFIG_FILE', 'cfg_path', os.path.join(os.environ['HOME'], '.twitter')),
-                    ('TWITTER_CONFIG_PROFILE', 'cfg_section', 'DEFAULT'))
+                    ('TWITTER_CONFIG_PROFILE', 'cfg_section', 'DEFAULT'),
+                    ('ENLIST_STATEFILE', 'statefile', os.path.join(os.environ['HOME'], '.enlist')))
 
         for (env_name, var_name, default) in self.vars:
             if os.environ.has_key(env_name):
@@ -27,6 +33,13 @@ class Connection(object):
             for (name, value) in parser.items(self.cfg_section):
                 setattr(self, name, value)
 
+    def __enter__(self):
+        if os.path.exists(self.statefile):
+            logging.info("reading statefile %s" % self.statefile)
+            self.state = pickle.load(open(self.statefile, 'rb'))
+        else:
+            self.state = State()
+
         # Create api cxn to twitter
         self.api = twitter.Api(sleep_on_rate_limit=True,
                           consumer_key=self.consumer_key,
@@ -36,31 +49,42 @@ class Connection(object):
 
         self.api.InitializeRateLimit()
 
+        if not self.state.blocked:
+            logging.warn("building list of blocked accounts. this takes a while but only happens once")
+            self.state.blocked = self.api.GetBlocksIDs()
+            logging.warn("done!")
 
-    def addFollowers(self, user, slug, count=200):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
         try:
-            (self.cursor, prev, follow) = self.api.GetFollowersPaged(cursor=self.cursor,
+            logging.info("writing statefile %s" % self.statefile)
+            pickle.dump(self.state, open(self.statefile, 'wb'))
+        except:
+            logging.exception("can't write statefile!")
+
+
+    def addFollowers(self, user, count=200):
+        try:
+            (self.state.cursor, prev, follow) = self.api.GetFollowersPaged(cursor=self.state.cursor,
                                                                 count=count,
                                                                 skip_status=True,
                                                                 user_id=user.id,
                                                                 include_user_entities=False)
 
-            logging.info("cursor: %s, requested %s, got %s" % (self.cursor, count, len(follow)))
+            logging.info("cursor: %s, requested %s, got %s" % (self.state.cursor, count, len(follow)))
 
             for f in follow:
                 self.block(f)
             
-            if self.cursor == 0:
+            if self.state.cursor == 0:
                 logging.info("finally adding %s" % user.screen_name)
                 self.block(user)
-                self.megachud = None
-                self.cursor = -1
+                self.state.megachud = None
+                self.state.cursor = -1
 
         except twitter.error.TwitterError:
             logging.exception("error listing %s" % user.screen_name)
-          # self.block(user)
-          # self.megachud = None
-          # self.cursor = -1
 
 
     def getListMembers(self, slug):
@@ -77,9 +101,12 @@ class Connection(object):
     def block(self, user):
         if user.following:
             logging.warn("tried to block a friend: %s" % user.screen_name)
+        elif user.id in self.state.blocked:
+            logging.info("user already blocked: %s" % user.screen_name)
         else:
             try:
                 self.api.CreateBlock(user_id=user.id, include_entities=False, skip_status=True)
+                self.state.blocked.append(user.id)
                 logging.info("blocked: %s" % user.screen_name)
             except twitter.error.TwitterError:
                 logging.exception("twitter exception")
@@ -112,13 +139,13 @@ class Connection(object):
 
 
     def block_megachuds(self):
-        if not self.megachud:
+        if not self.state.megachud:
             megachuds = self.getListMembers(slug=args.megachuds_list)
             if megachuds:
-                self.megachud = megachuds[0]
+                self.state.megachud = megachuds[0]
 
-        if self.megachud and self.check_limit():
-            self.addFollowers(self.megachud, args.chuds_list)
+        if self.state.megachud and self.check_limit():
+            self.addFollowers(self.state.megachud)
 
 
 if __name__ == '__main__':
@@ -135,22 +162,22 @@ if __name__ == '__main__':
         level = logging.WARN
     logging.basicConfig(level=level, format='%(message)s')
 
-    conn = Connection(args)
+    with Connection(args) as conn:
+        lists = conn.api.GetLists()
+        for i in [ args.chuds_list, args.megachuds_list ]:
+            if i not in [ l.slug for l in lists ]:
+                conn.api.CreateList(i, mode='private')
+                logging.info("created list: %s" % i)
 
-    lists = conn.api.GetLists()
-    for i in [ args.chuds_list, args.megachuds_list ]:
-        if i not in [ l.slug for l in lists ]:
-            conn.api.CreateList(i, mode='private')
-            logging.info("created list: %s" % i)
+        # main loop
+        while True:
+            conn.block_chuds()
+            conn.block_megachuds()
 
-    # main loop
-    while True:
-        conn.block_chuds()
-        conn.block_megachuds()
+            if args.verbose:
+                megachuds = conn.getListMembers(slug=args.megachuds_list)
+                chuds = conn.getListMembers(slug=args.chuds_list)
+                logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
+                logging.info("%s\n" % json.dumps(conn.limits(), indent=2))
 
-        if args.verbose:
-            megachuds = conn.getListMembers(slug=args.megachuds_list)
-            chuds = conn.getListMembers(slug=args.chuds_list)
-            logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
-            logging.info("%s\n" % json.dumps(conn.limits(), indent=2))
-        if not conn.megachud: time.sleep(args.sleep)
+            if not conn.state.megachud: time.sleep(args.sleep)
