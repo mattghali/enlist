@@ -178,6 +178,7 @@ if __name__ == '__main__':
                 megachuds = conn.getListMembers(slug=args.megachuds_list)
                 chuds = conn.getListMembers(slug=args.chuds_list)
                 logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
+                logging.info("total blocks: %s" % len(conn.state.blocked))
                 logging.info("%s\n" % json.dumps(conn.limits(), indent=2))
 
             if not conn.check_limit(): time.sleep(args.sleep)
