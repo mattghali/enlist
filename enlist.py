@@ -40,6 +40,7 @@ class Connection(object):
             try:
                 self.state = pickle.load(open(self.statefile, 'rb'))
             except:
+                logging.warn("can't read statefile!")
                 self.state = State()
 
             if self.state.__dict__.get('exc_type', False):
@@ -124,7 +125,7 @@ class Connection(object):
                 logging.exception("requests exception")
 
 
-    def limits(self):
+    def show_limits(self):
         self.api.InitializeRateLimit()
         resources = self.api.rate_limit.resources.copy()
         l = dict()
@@ -142,6 +143,17 @@ class Connection(object):
         return status.get('remaining', 15) > 0
 
 
+    def wait_limit(self, resource='followers', ep='/followers/list'):
+        res = self.api.rate_limit.resources.get(resource, {})
+        status = res.get(ep, {})
+        print status
+        if status.get('remaining', 15) == 0 or True:
+            reset = status.get('reset', 0)
+            delay = max(reset - time.time(), 0)
+            logging.info("sleeping for %s seconds" % delay)
+            time.sleep(delay)
+        return True
+
     def block_chuds(self):
         chuds = self.getListMembers(slug=args.chuds_list)
         for chud in chuds:
@@ -154,7 +166,7 @@ class Connection(object):
             if megachuds:
                 self.state.megachud = megachuds[0]
 
-        if self.state.megachud and self.check_limit():
+        if self.state.megachud and self.wait_limit():
             self.addFollowers(self.state.megachud)
 
 
@@ -190,6 +202,9 @@ if __name__ == '__main__':
                 chuds = conn.getListMembers(slug=args.chuds_list)
                 logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
                 logging.info("total blocks: %s" % len(conn.state.blocked))
-                logging.info("%s\n" % json.dumps(conn.limits(), indent=2))
 
-            if not conn.check_limit(): time.sleep(args.sleep)
+            if conn.state.megachud:
+                logging.info("continuing on %s" % conn.state.megachud)
+            else:
+                logging.info("no megachuds in list. sleeping for %s seconds" % args.sleep)
+                time.sleep(args.sleep)
