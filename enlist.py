@@ -151,8 +151,21 @@ class Connection(object):
             reset = status.get('reset', 0)
             delay = max(reset - time.time(), 0)
             logging.info("sleeping for %s seconds" % delay)
-            time.sleep(delay)
+            self.watch_sleep(delay)
         return True
+
+
+    def watch_sleep(t):
+        t = int(t)
+        if self.args.verbose: sys.stderr.write('waiting..')
+        while t > 0:
+            if self.args.verbose:
+                if t % 10 == 0: sys.stderr.write("%s" % t)
+                if t % 2 == 0: sys.stderr.write('.')
+            time.sleep(1)
+            t -= 1
+        if self.args.verbose: sys.stderr.write('0\n')
+
 
     def block_chuds(self):
         chuds = self.getListMembers(slug=args.chuds_list)
