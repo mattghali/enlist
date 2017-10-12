@@ -204,7 +204,7 @@ if __name__ == '__main__':
                 logging.info("total blocks: %s" % len(conn.state.blocked))
 
             if conn.state.megachud:
-                logging.info("continuing on %s" % conn.state.megachud)
+                logging.info("continuing on %s" % conn.state.megachud.screen_name)
             else:
                 logging.info("no megachuds in list. sleeping for %s seconds" % args.sleep)
                 time.sleep(args.sleep)
