@@ -146,7 +146,6 @@ class Connection(object):
     def wait_limit(self, resource='followers', ep='/followers/list'):
         res = self.api.rate_limit.resources.get(resource, {})
         status = res.get(ep, {})
-        print status
         if status.get('remaining', 15) == 0:
             reset = status.get('reset', 0)
             delay = max(reset - time.time(), 0)
@@ -219,4 +218,4 @@ if __name__ == '__main__':
                 logging.info("continuing...")
             else:
                 logging.info("no megachuds in list. sleeping for %s seconds" % args.sleep)
-                time.sleep(args.sleep)
+                conn.watch_sleep(args.sleep)
