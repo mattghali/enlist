@@ -147,7 +147,7 @@ class Connection(object):
         res = self.api.rate_limit.resources.get(resource, {})
         status = res.get(ep, {})
         print status
-        if status.get('remaining', 15) == 0 or True:
+        if status.get('remaining', 15) == 0:
             reset = status.get('reset', 0)
             delay = max(reset - time.time(), 0)
             logging.info("sleeping for %s seconds" % delay)
