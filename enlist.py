@@ -197,14 +197,13 @@ if __name__ == '__main__':
             conn.block_chuds()
             conn.block_megachuds()
 
-            if args.verbose:
-                megachuds = conn.getListMembers(slug=args.megachuds_list)
-                chuds = conn.getListMembers(slug=args.chuds_list)
-                logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
-                logging.info("total blocks: %s" % len(conn.state.blocked))
+            megachuds = conn.getListMembers(slug=args.megachuds_list)
+            chuds = conn.getListMembers(slug=args.chuds_list)
+            logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
+            logging.info("total blocks: %s" % len(conn.state.blocked))
 
-            if conn.state.megachud:
-                logging.info("continuing on %s" % conn.state.megachud.screen_name)
+            if conn.state.megachud or megachuds:
+                logging.info("continuing...")
             else:
                 logging.info("no megachuds in list. sleeping for %s seconds" % args.sleep)
                 time.sleep(args.sleep)
