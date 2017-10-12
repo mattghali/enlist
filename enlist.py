@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import json, logging, os, requests, time
+import json, logging, os, requests, sys, time
 from argparse import ArgumentParser
 from ConfigParser import SafeConfigParser
 import cPickle as pickle
@@ -155,7 +155,7 @@ class Connection(object):
         return True
 
 
-    def watch_sleep(t):
+    def watch_sleep(self, t):
         t = int(t)
         if self.args.verbose: sys.stderr.write('waiting..')
         while t > 0:
