@@ -18,9 +18,11 @@ class Connection(object):
         self.args = args
 
         # Read in environment variables for config file and section
-        self.vars = (('TWITTER_CONFIG_FILE', 'cfg_path', os.path.join(os.environ['HOME'], '.twitter')),
+        self.vars = (('TWITTER_CONFIG_FILE',
+                      'cfg_path', os.path.join(os.environ['HOME'], '.twitter')),
                     ('TWITTER_CONFIG_PROFILE', 'cfg_section', 'DEFAULT'),
-                    ('ENLIST_STATEFILE', 'statefile', os.path.join(os.environ['HOME'], '.enlist')))
+                    ('ENLIST_STATEFILE',
+                     'statefile', os.path.join(os.environ['HOME'], '.enlist')))
 
         for (env_name, var_name, default) in self.vars:
             if os.environ.has_key(env_name):
@@ -44,7 +46,8 @@ class Connection(object):
                 self.state = State()
 
             if self.state.__dict__.get('exc_type', False):
-                logging.warn("recovered from an %s exception: %s" % (self.state.exc_type, self.state.exc_value))
+                logging.warn("recovered from an %s exception: %s"
+                                % (self.state.exc_type, self.state.exc_value))
                 self.state.exc_type, self.state.exc_value = (None, None)
         else:
             self.state = State()
@@ -59,17 +62,18 @@ class Connection(object):
         self.api.InitializeRateLimit()
 
         if not self.state.blocked or self.args.rebuild_blocks:
-            logging.warn("building list of blocked accounts. this takes a while but only happens once")
+            logging.warn("building list of blocked accounts.")
+            logging.warn("this takes a while but only happens once")
             self.state.blocked = self.api.GetBlocksIDs()
             logging.warn("done!")
 
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.state.exc_type = exc_type
+        self.state.exc_value = exc_value
+        logging.info("writing statefile %s" % self.statefile)
         try:
-            self.state.exc_type = exc_type
-            self.state.exc_value = exc_value
-            logging.info("writing statefile %s" % self.statefile)
             pickle.dump(self.state, open(self.statefile, 'wb'))
         except:
             logging.exception("can't write statefile!")
@@ -77,30 +81,33 @@ class Connection(object):
 
     def addFollowers(self, user, count=200):
         try:
-            (self.state.cursor, prev, follow) = self.api.GetFollowersPaged(cursor=self.state.cursor,
-                                                                count=count,
-                                                                skip_status=True,
-                                                                user_id=user.id,
-                                                                include_user_entities=False)
-
-            logging.info("cursor: %s, requested %s, got %s" % (self.state.cursor, count, len(follow)))
-
-            for f in follow:
-                self.block(f)
-            
-            if self.state.cursor == 0:
-                logging.warn("blocked megachud %s" % user.screen_name)
-                self.block(user)
-                self.state.megachud = None
-                self.state.cursor = -1
+            (self.state.cursor, prev,
+             follow) = self.api.GetFollowersPaged(cursor=self.state.cursor,
+                                                  count=count,
+                                                  skip_status=True,
+                                                  user_id=user.id,
+                                                  include_user_entities=False)
 
         except twitter.error.TwitterError:
             logging.exception("error listing %s" % user.screen_name)
 
+        logging.info("cursor: %s, requested %s, got %s"
+                        % (self.state.cursor, count, len(follow)))
+
+        for f in follow:
+            self.block(f)
+
+        if self.state.cursor == 0:
+            logging.warn("blocked megachud %s" % user.screen_name)
+            self.block(user)
+            self.state.megachud = None
+            self.state.cursor = -1
+
 
     def getListMembers(self, slug):
         try:
-            return self.api.GetListMembers(slug=slug, owner_screen_name=self.screen_name)
+            return self.api.GetListMembers(slug=slug,
+                                           owner_screen_name=self.screen_name)
         except twitter.error.TwitterError:
             logging.exception("twitter exception")
             return []
@@ -116,25 +123,14 @@ class Connection(object):
             logging.info("user already blocked: %s" % user.screen_name)
         else:
             try:
-                self.api.CreateBlock(user_id=user.id, include_entities=False, skip_status=True)
+                self.api.CreateBlock(user_id=user.id,
+                                     include_entities=False, skip_status=True)
                 self.state.blocked.append(user.id)
                 logging.info("blocked: %s" % user.screen_name)
             except twitter.error.TwitterError:
                 logging.exception("twitter exception")
             except requests.exceptions.RequestException:
                 logging.exception("requests exception")
-
-
-    def show_limits(self):
-        self.api.InitializeRateLimit()
-        resources = self.api.rate_limit.resources.copy()
-        l = dict()
-        for res in resources:
-            for ep in resources[res]:
-                if resources[res][ep]['remaining'] < resources[res][ep]['limit']:
-                    l[ep] = resources[res][ep]
-                    l[ep]['reset'] = max(int(l[ep]['reset'] - time.time()), 0)
-        return l
 
 
     def get_limit(self, resource='followers', ep='/followers/list'):
@@ -193,11 +189,16 @@ class Connection(object):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('--sleep', type=int, default=30, help='interval to poll lists on')
-    parser.add_argument('--chuds-list', type=str, default='chuds', help='name of list of users to block')
-    parser.add_argument('--megachuds-list', type=str, default='megachuds', help='name of list of users to block, along with followers')
-    parser.add_argument('--rebuild-blocks', action='store_true', default=False, help='rebuild internal list of blocked accts')
-    parser.add_argument('--verbose', action='store_true', default=False, help='enable debugging output')
+    parser.add_argument('--sleep', type=int, default=30,
+                        help='interval to poll lists on')
+    parser.add_argument('--chuds-list', type=str, default='chuds',
+                        help='name of list of users to block')
+    parser.add_argument('--megachuds-list', type=str, default='megachuds',
+                        help='name of list of users to block, with followers')
+    parser.add_argument('--rebuild-blocks', action='store_true', default=False,
+                        help='rebuild internal list of blocked accts')
+    parser.add_argument('--verbose', action='store_true', default=False,
+                        help='enable debugging output')
     args = parser.parse_args()
 
     if args.verbose:
@@ -220,11 +221,13 @@ if __name__ == '__main__':
 
             megachuds = conn.getListMembers(slug=args.megachuds_list)
             chuds = conn.getListMembers(slug=args.chuds_list)
-            logging.info("chuds: %s megachuds: %s" % (len(chuds), len(megachuds)))
+            logging.info("chuds: %s megachuds: %s"
+                            % (len(chuds), len(megachuds)))
             logging.info("total blocks: %s" % len(conn.state.blocked))
 
             if conn.state.megachud or megachuds:
                 logging.info("continuing...")
             else:
-                logging.info("no megachuds in list. sleeping for %s seconds" % args.sleep)
+                logging.info("no megachuds in list. sleeping for %s seconds"
+                                % args.sleep)
                 conn.watch_sleep(args.sleep)
