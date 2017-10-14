@@ -1,5 +1,4 @@
 import logging
-logging.basicConfig(level=logging.DEBUG)
 
 class error(object):
     def TwitterError(self, e):
@@ -82,4 +81,7 @@ class Api(object):
 
     def CreateBlock(self, **kwargs):
         user_id = kwargs.get('user_id')
+
+    def GetBlocksIDs(self, stringify_ids=False):
+        return range(1,10,2)
 

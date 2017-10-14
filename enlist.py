@@ -94,11 +94,8 @@ class Connection(object):
         logging.info("cursor: %s, requested %s, got %s"
                         % (self.state.cursor, count, len(follow)))
 
-        i = 0
         for f in follow:
-            if i % 5 == 0: time.sleep(1)
             self.block(f)
-            i += 1
 
         if self.state.cursor == 0:
             logging.warn("blocked megachud %s" % user.screen_name)
