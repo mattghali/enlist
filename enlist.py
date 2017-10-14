@@ -137,20 +137,29 @@ class Connection(object):
         return l
 
 
-    def check_limit(self, resource='followers', ep='/followers/list'):
+    def get_limit(self, resource='followers', ep='/followers/list'):
         res = self.api.rate_limit.resources.get(resource, {})
         status = res.get(ep, {})
-        return status.get('remaining', 15) > 0
+        if not status: logging.warn("oops, got empty limit status")
+        status.setdefault('reset', int(time.time() + 900))
+        status.setdefault('limit', 15)
+        status.setdefault('remaining', 15)
+        return status
 
 
     def wait_limit(self, resource='followers', ep='/followers/list'):
-        res = self.api.rate_limit.resources.get(resource, {})
-        status = res.get(ep, {})
-        if status.get('remaining', 15) == 0:
-            reset = status.get('reset', 0)
-            delay = max(reset - time.time(), 0)
-            logging.info("sleeping for %s seconds" % delay)
-            self.watch_sleep(delay)
+        status = self.get_limit(resource=resource, ep=ep)
+
+        if status.get('remaining', 15) > 0:
+            runtime_left = status.get('reset') - int(time.time())
+            delay = runtime_left / status.get('remaining')
+        else:
+            logging.warn("OOPS: 0 remaining!")
+            delay = status.get('reset') - int(time.time())
+
+        logging.info("sleeping for %s seconds" % delay)
+        self.watch_sleep(delay)
+
         return True
 
 
