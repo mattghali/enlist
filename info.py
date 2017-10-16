@@ -24,7 +24,10 @@ args = parser.parse_args()
 enlist.setup_logging(args)
 
 with enlist.Connection(args) as conn:
-    print "current megachud:", conn.state.__dict__.get('megachud.screen_name', None)
+    if conn.state.megachud:
+        print "current megachud:", conn.state.megachud.screen_name
+    else:   
+        print "no megachud set"
     print "blocks:", len(conn.state.blocked)
 
     if args.clear:

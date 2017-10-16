@@ -42,7 +42,7 @@ class Connection(object):
             try:
                 self.state = pickle.load(open(self.statefile, 'rb'))
             except:
-                logging.warn("can't read statefile!")
+                logging.exception("can't read statefile!")
                 self.state = State()
 
             if self.state.__dict__.get('exc_type', False):
@@ -187,6 +187,15 @@ class Connection(object):
             self.addFollowers(self.state.megachud)
 
 
+
+def setup_logging(args):
+    if args.verbose:
+        level = logging.INFO
+    else:
+        level = logging.WARN
+    logging.basicConfig(level=level, format='%(message)s')
+
+
 if __name__ == '__main__':
     parser = ArgumentParser(description=__doc__)
     parser.add_argument('--sleep', type=int, default=30,
@@ -201,11 +210,7 @@ if __name__ == '__main__':
                         help='enable debugging output')
     args = parser.parse_args()
 
-    if args.verbose:
-        level = logging.INFO
-    else:
-        level = logging.WARN
-    logging.basicConfig(level=level, format='%(message)s')
+    setup_logging(args)
 
     with Connection(args) as conn:
         lists = conn.api.GetLists()
