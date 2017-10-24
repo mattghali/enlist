@@ -11,7 +11,6 @@ import logging
 import enlist
 from enlist import State
 
-
 parser = ArgumentParser(description=__doc__)
 parser.add_argument('--clear', action='store_true', default=False,
                     help='clear current megachud')
