@@ -107,10 +107,7 @@ class Connection(object):
 
         if self.state.cursor == 0:
             logging.warn("blocked megachud %s" % user.screen_name)
-            try:
-                self.megachuds.remove(user)
-            except ValueError:
-                logging.warn('that one wierd error!')
+            self.del_megachud(user)
             self.block(user)
             self.state.megachud = None
             self.state.cursor = -1
@@ -133,7 +130,7 @@ class Connection(object):
             logging.warn("tried to block a friend: %s" % user.screen_name)
         elif user.id in self.state.blocked:
             logging.info("user already blocked: %s" % user.screen_name)
-        elif user in self.megachuds:
+        elif self.check_megachud(user):
             logging.info("user is future megachud: %s" % user.screen_name)
         else:
             try:
@@ -200,6 +197,15 @@ class Connection(object):
         if not self.state.megachud:
             if self.megachuds:
                 self.state.megachud = self.megachuds.pop()
+
+
+    def check_megachud(self, user):
+        return user.id in [ u.id for u in self.megachuds ]
+
+
+    def del_megachud(self, user):
+        for u in self.megachuds:
+            if user.id == u.id: self.megachuds.remove(u)
 
 
 
