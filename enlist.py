@@ -54,10 +54,10 @@ class Connection(object):
 
         # Create api cxn to twitter
         self.api = twitter.Api(sleep_on_rate_limit=True,
-                          consumer_key=self.consumer_key,
-                          consumer_secret=self.consumer_secret,
-                          access_token_key=self.access_token_key,
-                          access_token_secret=self.access_token_secret)
+                               consumer_key=self.consumer_key,
+                               consumer_secret=self.consumer_secret,
+                               access_token_key=self.access_token_key,
+                               access_token_secret=self.access_token_secret)
 
         self.api.InitializeRateLimit()
 
@@ -67,7 +67,15 @@ class Connection(object):
             self.state.blocked = self.api.GetBlocksIDs()
             logging.warn("done!")
 
+        lists = self.api.GetLists()
+        for name in [ self.args.chuds_list, self.args.megachuds_list ]:
+            if name not in [ l.slug for l in lists ]:
+                self.api.CreateList(name, mode='private')
+                logging.info("created list: %s" % name)
+
+        self.poll_lists()
         return self
+
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.state.exc_type = exc_type
@@ -121,6 +129,8 @@ class Connection(object):
             logging.warn("tried to block a friend: %s" % user.screen_name)
         elif user.id in self.state.blocked:
             logging.info("user already blocked: %s" % user.screen_name)
+        elif user in self.megachuds:
+            logging.info("user is future megachud: %s" % user.screen_name)
         else:
             try:
                 self.api.CreateBlock(user_id=user.id,
@@ -155,7 +165,6 @@ class Connection(object):
 
         logging.info("sleeping for %s seconds" % delay)
         self.watch_sleep(delay)
-
         return True
 
 
@@ -172,19 +181,21 @@ class Connection(object):
 
 
     def block_chuds(self):
-        chuds = self.getListMembers(slug=args.chuds_list)
-        for chud in chuds:
+        for chud in self.chuds:
             self.block(chud)
 
 
     def block_megachuds(self):
-        if not self.state.megachud:
-            megachuds = self.getListMembers(slug=args.megachuds_list)
-            if megachuds:
-                self.state.megachud = megachuds[0]
-
         if self.state.megachud and self.wait_limit():
             self.addFollowers(self.state.megachud)
+
+
+    def poll_lists(self):
+        self.megachuds = self.getListMembers(slug=self.args.megachuds_list)
+        self.chuds = self.getListMembers(slug=self.args.chuds_list)
+        if not self.state.megachud:
+            if self.megachuds:
+                self.state.megachud = self.megachuds.pop()
 
 
 
@@ -194,6 +205,7 @@ def setup_logging(args):
     else:
         level = logging.WARN
     logging.basicConfig(level=level, format='%(message)s')
+
 
 
 if __name__ == '__main__':
@@ -213,24 +225,17 @@ if __name__ == '__main__':
     setup_logging(args)
 
     with Connection(args) as conn:
-        lists = conn.api.GetLists()
-        for i in [ args.chuds_list, args.megachuds_list ]:
-            if i not in [ l.slug for l in lists ]:
-                conn.api.CreateList(i, mode='private')
-                logging.info("created list: %s" % i)
-
         # main loop
         while True:
             conn.block_chuds()
             conn.block_megachuds()
+            conn.poll_lists()
 
-            megachuds = conn.getListMembers(slug=args.megachuds_list)
-            chuds = conn.getListMembers(slug=args.chuds_list)
             logging.info("chuds: %s megachuds: %s"
-                            % (len(chuds), len(megachuds)))
+                            % (len(conn.chuds), len(conn.megachuds)))
             logging.info("total blocks: %s" % len(conn.state.blocked))
 
-            if conn.state.megachud or megachuds:
+            if conn.state.megachud or conn.megachuds:
                 logging.info("continuing...")
             else:
                 logging.info("no megachuds in list. sleeping for %s seconds"
