@@ -107,7 +107,10 @@ class Connection(object):
 
         if self.state.cursor == 0:
             logging.warn("blocked megachud %s" % user.screen_name)
-            self.megachuds.remove(user)
+            try:
+                self.megachuds.remove(user)
+            except ValueError:
+                logging.warn('that one wierd error!')
             self.block(user)
             self.state.megachud = None
             self.state.cursor = -1
