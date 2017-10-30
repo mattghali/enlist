@@ -18,6 +18,10 @@ parser.add_argument('--rebuild-blocks', action='store_true', default=False,
                     help='rebuild internal list of blocked accts')
 parser.add_argument('--verbose', action='store_true', default=False,
                     help='enable debugging output')
+parser.add_argument('--chuds-list', type=str, default='chuds',
+                    help='name of list of users to block')
+parser.add_argument('--megachuds-list', type=str, default='megachuds',
+                    help='name of list of users to block, with followers')
 args = parser.parse_args()
 
 enlist.setup_logging(args)
