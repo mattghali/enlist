@@ -9,6 +9,7 @@ import twitter
 class State(object):
     def __init__(self):
         self.megachud = None
+        self.already_blocked = 0
         self.cursor = -1
         self.blocked = []
         self.exc_type, self.exc_value = (None, None)
@@ -110,6 +111,7 @@ class Connection(object):
             self.del_megachud(user)
             self.block(user)
             self.state.megachud = None
+            self.state.already_blocked = 0
             self.state.cursor = -1
 
 
@@ -137,6 +139,7 @@ class Connection(object):
                 self.api.CreateBlock(user_id=user.id,
                                      include_entities=False, skip_status=True)
                 self.state.blocked.append(user.id)
+                self.state.already_blocked += 1
                 logging.info("blocked: %s" % user.screen_name)
             except twitter.error.TwitterError:
                 logging.exception("twitter exception")
@@ -245,8 +248,10 @@ if __name__ == '__main__':
                             % (len(conn.chuds), len(conn.megachuds)))
             logging.info("total blocks: %s" % len(conn.state.blocked))
 
-            if conn.state.megachud or conn.megachuds:
-                logging.info("continuing...")
+            if conn.megachuds:
+                logging.info("continuing on next megachud...")
+            elif conn.state.megachud:
+                logging.info("continuing on %s (%s/%s)..." % (conn.state.megachud.screen_name, conn.state.already_blocked, conn.state.megachud.followers_count))
             else:
                 logging.info("no megachuds in list. sleeping for %s seconds"
                                 % args.sleep)
