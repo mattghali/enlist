@@ -107,7 +107,7 @@ class Connection(object):
             self.block(f)
 
         if self.state.cursor == 0:
-            logging.warn("blocked megachud %s" % user.screen_name)
+            logging.warn("finally blocking megachud %s" % user.screen_name)
             self.del_megachud(user)
             self.block(user)
             self.state.megachud = None
@@ -201,6 +201,10 @@ class Connection(object):
             if self.megachuds:
                 self.state.megachud = self.megachuds.pop()
 
+        logging.info("chuds: %s megachuds: %s"
+                        % (len(self.chuds), len(self.megachuds)))
+        logging.info("total blocks: %s" % len(self.state.blocked))
+
 
     def check_megachud(self, user):
         return user.id in [ u.id for u in self.megachuds ]
@@ -238,20 +242,16 @@ if __name__ == '__main__':
     setup_logging(args)
 
     with Connection(args) as conn:
-        # main loop
         while True:
             conn.block_chuds()
             conn.block_megachuds()
             conn.poll_lists()
 
-            logging.info("chuds: %s megachuds: %s"
-                            % (len(conn.chuds), len(conn.megachuds)))
-            logging.info("total blocks: %s" % len(conn.state.blocked))
-
             if conn.state.megachud:
-                logging.info("continuing on %s (%s/%s)..." % (conn.state.megachud.screen_name, conn.state.already_blocked, conn.state.megachud.followers_count))
-            elif conn.megachuds:
-                logging.info("continuing on next megachud...")
+                logging.info("continuing on %s (%s/%s)..."
+                                % (conn.state.megachud.screen_name,
+                                   conn.state.already_blocked,
+                                   conn.state.megachud.followers_count))
             else:
                 logging.info("no megachuds in list. sleeping for %s seconds"
                                 % args.sleep)
