@@ -201,9 +201,10 @@ class Connection(object):
             if self.megachuds:
                 self.state.megachud = self.megachuds.pop()
 
-        logging.info("chuds: %s megachuds: %s"
-                        % (len(self.chuds), len(self.megachuds)))
-        logging.info("total blocks: %s" % len(self.state.blocked))
+        logging.info("chuds: %s megachuds: %s total blocks: %s"
+                        % (len(self.chuds),
+                           len(self.megachuds),
+                           len(self.state.blocked)))
 
 
     def check_megachud(self, user):
