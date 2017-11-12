@@ -128,6 +128,7 @@ class Connection(object):
 
 
     def block(self, user):
+        self.state.already_blocked += 1
         if user.following:
             logging.warn("tried to block a friend: %s" % user.screen_name)
         elif user.id in self.state.blocked:
@@ -139,7 +140,6 @@ class Connection(object):
                 self.api.CreateBlock(user_id=user.id,
                                      include_entities=False, skip_status=True)
                 self.state.blocked.append(user.id)
-                self.state.already_blocked += 1
                 logging.info("blocked: %s" % user.screen_name)
             except twitter.error.TwitterError:
                 logging.exception("twitter exception")
