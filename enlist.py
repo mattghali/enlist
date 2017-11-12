@@ -248,10 +248,10 @@ if __name__ == '__main__':
                             % (len(conn.chuds), len(conn.megachuds)))
             logging.info("total blocks: %s" % len(conn.state.blocked))
 
-            if conn.megachuds:
-                logging.info("continuing on next megachud...")
-            elif conn.state.megachud:
+            if conn.state.megachud:
                 logging.info("continuing on %s (%s/%s)..." % (conn.state.megachud.screen_name, conn.state.already_blocked, conn.state.megachud.followers_count))
+            elif conn.megachuds:
+                logging.info("continuing on next megachud...")
             else:
                 logging.info("no megachuds in list. sleeping for %s seconds"
                                 % args.sleep)
