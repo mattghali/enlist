@@ -109,7 +109,7 @@ class Connection(object):
         if self.state.cursor == 0:
             logging.warn("finally blocking megachud %s" % user.screen_name)
             self.del_megachud(user)
-            self.block(user)
+            self.block(user, force=True)
             self.state.megachud = None
             self.state.already_blocked = 0
             self.state.cursor = -1
@@ -127,11 +127,11 @@ class Connection(object):
             return []
 
 
-    def block(self, user):
+    def block(self, user, force=False):
         self.state.already_blocked += 1
         if user.following:
             logging.warn("tried to block a friend: %s" % user.screen_name)
-        elif user.id in self.state.blocked:
+        elif user.id in self.state.blocked and not force:
             logging.info("user already blocked: %s" % user.screen_name)
         elif self.check_megachud(user):
             logging.info("user is future megachud: %s" % user.screen_name)
