@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import json, logging, os, requests, sys, time
+import json, logging, logging.handlers, os, requests, sys, time
 from argparse import ArgumentParser
 from ConfigParser import SafeConfigParser
 import cPickle as pickle
@@ -98,6 +98,8 @@ class Connection(object):
                                                   include_user_entities=False)
 
         except twitter.error.TwitterError:
+            follow = list()
+            self.state.cursor = 0
             logging.exception("error listing %s" % user.screen_name)
 
         logging.info("cursor: %s, requested %s, got %s"
@@ -223,6 +225,8 @@ def setup_logging(args):
     else:
         level = logging.WARN
     logging.basicConfig(level=level, format='%(message)s')
+    logger = logging.getLogger()
+    logger.addHandler(logging.handlers.SysLogHandler(facility=logging.handlers.SysLogHandler.LOG_LOCAL3))
 
 
 
