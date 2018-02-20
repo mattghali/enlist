@@ -134,7 +134,7 @@ class Connection(object):
         if user.following:
             logging.warn("tried to block a friend: %s" % user.screen_name)
         elif user.id in self.state.blocked and not force:
-            logging.info("user already blocked: %s" % user.screen_name)
+            logging.info("already blocked: %s" % user.screen_name)
         elif self.check_megachud(user):
             logging.info("user is future megachud: %s" % user.screen_name)
         else:
@@ -142,7 +142,7 @@ class Connection(object):
                 self.api.CreateBlock(user_id=user.id,
                                      include_entities=False, skip_status=True)
                 self.state.blocked.append(user.id)
-                logging.info("blocked: %s" % user.screen_name)
+                logging.info("user blocked: %s" % user.screen_name)
             except twitter.error.TwitterError:
                 logging.exception("twitter exception")
             except requests.exceptions.RequestException:
