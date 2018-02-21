@@ -39,7 +39,7 @@ class Connection(object):
 
     def __enter__(self):
         if os.path.exists(self.statefile):
-            logging.info("reading statefile %s" % self.statefile)
+            logging.notice("reading statefile %s" % self.statefile)
             try:
                 self.state = pickle.load(open(self.statefile, 'rb'))
             except:
@@ -72,7 +72,7 @@ class Connection(object):
         for name in [ self.args.chuds_list, self.args.megachuds_list ]:
             if name not in [ l.slug for l in lists ]:
                 self.api.CreateList(name, mode='private')
-                logging.info("created list: %s" % name)
+                logging.notice("created list: %s" % name)
 
         self.poll_lists()
         return self
@@ -81,7 +81,7 @@ class Connection(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.state.exc_type = exc_type
         self.state.exc_value = exc_value
-        logging.info("writing statefile %s" % self.statefile)
+        logging.notice("writing statefile %s" % self.statefile)
         try:
             pickle.dump(self.state, open(self.statefile, 'wb'))
         except:
@@ -102,14 +102,14 @@ class Connection(object):
             self.state.cursor = 0
             logging.exception("error listing %s" % user.screen_name)
 
-        logging.info("cursor: %s, requested %s, got %s"
+        logging.notice("cursor: %s, requested %s, got %s"
                         % (self.state.cursor, count, len(follow)))
 
         for f in follow:
             self.block(f)
 
         if self.state.cursor == 0:
-            logging.warn("finally blocking megachud %s" % user.screen_name)
+            logging.notice("finally blocking megachud %s" % user.screen_name)
             self.del_megachud(user)
             self.block(user, force=True)
             self.state.megachud = None
@@ -136,7 +136,7 @@ class Connection(object):
         elif user.id in self.state.blocked and not force:
             logging.info("already blocked: %s" % user.screen_name)
         elif self.check_megachud(user):
-            logging.info("user is future megachud: %s" % user.screen_name)
+            logging.notice("user is future megachud: %s" % user.screen_name)
         else:
             try:
                 self.api.CreateBlock(user_id=user.id,
@@ -169,7 +169,7 @@ class Connection(object):
             logging.warn("OOPS: 0 remaining!")
             delay = status.get('reset') - int(time.time())
 
-        logging.info("sleeping for %s seconds" % delay)
+        logging.notice("sleeping for %s seconds" % delay)
         self.watch_sleep(delay)
         return True
 
@@ -203,7 +203,7 @@ class Connection(object):
             if self.megachuds:
                 self.state.megachud = self.megachuds.pop()
 
-        logging.info("chuds: %s megachuds: %s total blocks: %s"
+        logging.notice("chuds: %s megachuds: %s total blocks: %s"
                         % (len(self.chuds),
                            len(self.megachuds),
                            len(self.state.blocked)))
@@ -253,11 +253,11 @@ if __name__ == '__main__':
             conn.poll_lists()
 
             if conn.state.megachud:
-                logging.info("continuing on %s (%s/%s)..."
+                logging.notice("continuing on %s (%s/%s)..."
                                 % (conn.state.megachud.screen_name,
                                    conn.state.already_blocked,
                                    conn.state.megachud.followers_count))
             else:
-                logging.info("no megachuds in list. sleeping for %s seconds"
+                logging.notice("no megachuds in list. sleeping for %s seconds"
                                 % args.sleep)
                 conn.watch_sleep(args.sleep)
