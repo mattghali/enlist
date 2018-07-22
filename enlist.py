@@ -3,16 +3,15 @@
 import json, logging, logging.handlers, os, requests, sys, time
 from argparse import ArgumentParser
 from ConfigParser import SafeConfigParser
-import cPickle as pickle
 import twitter
 
-class State(object):
+class State(dict):
     def __init__(self):
-        self.megachud = None
-        self.already_blocked = 0
-        self.cursor = -1
-        self.blocked = []
-        self.exc_type, self.exc_value = (None, None)
+        self['megachud'] = None
+        self['already_blocked'] = 0
+        self['cursor'] = -1
+        self['blocked'] = []
+        self['exc_type'], self['exc_value'] = (None, None)
 
 class Connection(object):
     def __init__(self, args):
@@ -23,7 +22,7 @@ class Connection(object):
                       'cfg_path', os.path.join(os.environ['HOME'], '.twitter')),
                     ('TWITTER_CONFIG_PROFILE', 'cfg_section', 'DEFAULT'),
                     ('ENLIST_STATEFILE',
-                     'statefile', os.path.join(os.environ['HOME'], '.enlist')))
+                     'statefile', os.path.join(os.environ['HOME'], '.enlist.json')))
 
         for (env_name, var_name, default) in self.vars:
             if os.environ.has_key(env_name):
@@ -41,7 +40,7 @@ class Connection(object):
         if os.path.exists(self.statefile):
             logging.warn("reading statefile %s" % self.statefile)
             try:
-                self.state = pickle.load(open(self.statefile, 'rb'))
+                self.state = json.load(open(self.statefile, 'rb'))
             except:
                 logging.exception("can't read statefile!")
                 self.state = State()
@@ -83,7 +82,7 @@ class Connection(object):
         self.state.exc_value = exc_value
         logging.warn("writing statefile %s" % self.statefile)
         try:
-            pickle.dump(self.state, open(self.statefile, 'wb'))
+            json.dump(self.state, open(self.statefile, 'wb'))
         except:
             logging.exception("can't write statefile!")
 
