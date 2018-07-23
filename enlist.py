@@ -5,13 +5,6 @@ from argparse import ArgumentParser
 from ConfigParser import SafeConfigParser
 import twitter
 
-class State(dict):
-    def __init__(self):
-        self['megachud'] = None
-        self['already_blocked'] = 0
-        self['cursor'] = -1
-        self['blocked'] = []
-        self['exc_type'], self['exc_value'] = (None, None)
 
 class Connection(object):
     def __init__(self, args):
@@ -43,14 +36,14 @@ class Connection(object):
                 self.state = json.load(open(self.statefile, 'rb'))
             except:
                 logging.exception("can't read statefile!")
-                self.state = State()
+                self.state = self.initState()
 
-            if self.state.__dict__.get('exc_type', False):
+            if self.state.get('exc_type', None):
                 logging.error("recovered from an %s exception: %s"
-                                % (self.state.exc_type, self.state.exc_value))
-                self.state.exc_type, self.state.exc_value = (None, None)
+                                % (self.state.get('exc_type'), self.state.get('exc_value')))
+                self.state['exc_type'], self.state['exc_value'] = (None, None)
         else:
-            self.state = State()
+            self.state = self.initState()
 
         # Create api cxn to twitter
         self.api = twitter.Api(sleep_on_rate_limit=True,
@@ -61,10 +54,10 @@ class Connection(object):
 
         self.api.InitializeRateLimit()
 
-        if not self.state.blocked or self.args.rebuild_blocks:
+        if not self.state.get('blocked') or self.args.rebuild_blocks:
             logging.warn("building list of blocked accounts.")
             logging.warn("this takes a while but only happens once")
-            self.state.blocked = self.api.GetBlocksIDs()
+            self.state['blocked'] = self.api.GetBlocksIDs()
             logging.warn("done!")
 
         lists = self.api.GetLists()
@@ -78,8 +71,8 @@ class Connection(object):
 
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.state.exc_type = exc_type
-        self.state.exc_value = exc_value
+        self.state['exc_type'] = exc_type
+        self.state['exc_value'] = exc_value
         logging.warn("writing statefile %s" % self.statefile)
         try:
             json.dump(self.state, open(self.statefile, 'wb'))
@@ -87,10 +80,21 @@ class Connection(object):
             logging.exception("can't write statefile!")
 
 
+    def initState(self):
+        state = dict()
+        state['megachud'] = None
+        state['already_blocked'] = 0
+        state['cursor'] = -1
+        state['blocked'] = []
+        state['exc_type'], state['exc_value'] = (None, None)
+
+        return state
+
+
     def addFollowers(self, user, count=200):
         try:
-            (self.state.cursor, prev,
-             follow) = self.api.GetFollowersPaged(cursor=self.state.cursor,
+            (self.state['cursor'], prev,
+             follow) = self.api.GetFollowersPaged(cursor=self.state.get('cursor'),
                                                   count=count,
                                                   skip_status=True,
                                                   user_id=user.id,
@@ -98,22 +102,22 @@ class Connection(object):
 
         except twitter.error.TwitterError:
             follow = list()
-            self.state.cursor = 0
+            self.state['cursor'] = 0
             logging.exception("error listing %s" % user.screen_name)
 
         logging.warn("cursor: %s, requested %s, got %s"
-                        % (self.state.cursor, count, len(follow)))
+                        % (self.state.get('cursor'), count, len(follow)))
 
         for f in follow:
             self.block(f)
 
-        if self.state.cursor == 0:
+        if self.state.get('cursor') == 0:
             logging.warn("finally blocking megachud %s" % user.screen_name)
             self.del_megachud(user)
             self.block(user, force=True)
-            self.state.megachud = None
-            self.state.already_blocked = 0
-            self.state.cursor = -1
+            self.state['megachud'] = None
+            self.state['already_blocked'] = 0
+            self.state['cursor'] = -1
 
 
     def getListMembers(self, slug):
@@ -129,10 +133,10 @@ class Connection(object):
 
 
     def block(self, user, force=False):
-        self.state.already_blocked += 1
+        self.state['already_blocked'] += 1
         if user.following:
             logging.warn("tried to block a friend: %s" % user.screen_name)
-        elif user.id in self.state.blocked and not force:
+        elif user.id in self.state.get('blocked') and not force:
             logging.info("already blocked: %s" % user.screen_name)
         elif self.check_megachud(user):
             logging.warn("user is future megachud: %s" % user.screen_name)
@@ -140,7 +144,7 @@ class Connection(object):
             try:
                 self.api.CreateBlock(user_id=user.id,
                                      include_entities=False, skip_status=True)
-                self.state.blocked.append(user.id)
+                self.state['blocked'].append(user.id)
                 logging.info("user blocked: %s" % user.screen_name)
             except twitter.error.TwitterError:
                 logging.exception("twitter exception")
@@ -191,21 +195,21 @@ class Connection(object):
 
 
     def block_megachuds(self):
-        if self.state.megachud and self.wait_limit():
-            self.addFollowers(self.state.megachud)
+        if self.state.get('megachud') and self.wait_limit():
+            self.addFollowers(self.state.get('megachud'))
 
 
     def poll_lists(self):
         self.megachuds = self.getListMembers(slug=self.args.megachuds_list)
         self.chuds = self.getListMembers(slug=self.args.chuds_list)
-        if not self.state.megachud:
+        if not self.state.get('megachud'):
             if self.megachuds:
-                self.state.megachud = self.megachuds.pop()
+                self.state['megachud'] = self.megachuds.pop()
 
         logging.warn("chuds: %s megachuds: %s total blocks: %s"
                         % (len(self.chuds),
                            len(self.megachuds),
-                           len(self.state.blocked)))
+                           len(self.state.get('blocked'))))
 
 
     def check_megachud(self, user):
@@ -251,11 +255,11 @@ if __name__ == '__main__':
             conn.block_megachuds()
             conn.poll_lists()
 
-            if conn.state.megachud:
+            if conn.state.get('megachud'):
                 logging.warn("continuing on %s (%s/%s)..."
-                                % (conn.state.megachud.screen_name,
-                                   conn.state.already_blocked,
-                                   conn.state.megachud.followers_count))
+                                % (conn.state.get('megachud').screen_name,
+                                   conn.state.get('already_blocked'),
+                                   conn.state.get('megachud').followers_count))
             else:
                 logging.warn("no megachuds in list. sleeping for %s seconds"
                                 % args.sleep)

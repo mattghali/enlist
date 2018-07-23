@@ -9,7 +9,6 @@ from argparse import ArgumentParser
 import logging
 
 import enlist
-from enlist import State
 
 parser = ArgumentParser(description=__doc__)
 parser.add_argument('--clear', action='store_true', default=False,
@@ -27,13 +26,13 @@ args = parser.parse_args()
 enlist.setup_logging(args)
 
 with enlist.Connection(args) as conn:
-    if conn.state.megachud:
-        print "current megachud:", conn.state.megachud.screen_name
+    if conn.state.get('megachud'):
+        print "current megachud:", conn.state.get('megachud').screen_name
     else:   
         print "no megachud set"
-    print "blocks:", len(conn.state.blocked)
+    print "blocks:", len(conn.state.get('blocked'))
 
     if args.clear:
         print 'clearing megachud'
-        conn.state.megachud = None
-        conn.state.cursor = -1
+        conn.state['megachud'] = None
+        conn.state['cursor'] = -1
