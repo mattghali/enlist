@@ -33,7 +33,7 @@ class Connection(object):
         if os.path.exists(self.statefile):
             logging.warn("reading statefile %s" % self.statefile)
             try:
-                self.state = json.load(open(self.statefile, 'rb'))
+                self.state = json.load(open(self.statefile, 'r'))
             except:
                 logging.exception("can't read statefile!")
                 self.state = self.initState()
@@ -75,7 +75,7 @@ class Connection(object):
         self.state['exc_value'] = exc_value
         logging.warn("writing statefile %s" % self.statefile)
         try:
-            json.dump(self.state, open(self.statefile, 'wb'))
+            json.dump(self.state, open(self.statefile, 'w'))
         except:
             logging.exception("can't write statefile!")
 
@@ -122,8 +122,8 @@ class Connection(object):
         logging.warn("cursor: %s, requested %s, got %s"
                         % (self.state.get('cursor'), count, len(follow)))
 
-        for f in follow:
-            self.block(f)
+        for u in follow:
+            self.block(u)
 
         if self.state.get('cursor') == 0:
             logging.warn("finally blocking megachud %s" % user.screen_name)
@@ -210,7 +210,9 @@ class Connection(object):
 
     def block_megachuds(self):
         if self.state.get('megachud') and self.wait_limit():
-            self.addFollowers(self.state.get('megachud'))
+            user_id = self.state.get('megachud')
+            user = self.api.GetUser(user_id=user_id)
+            self.addFollowers(user)
 
 
     def poll_lists(self):
@@ -218,7 +220,7 @@ class Connection(object):
         self.chuds = self.getListMembers(slug=self.args.chuds_list)
         if not self.state.get('megachud'):
             if self.megachuds:
-                self.state['megachud'] = self.megachuds.pop()
+                self.state['megachud'] = self.megachuds.pop().id
 
         logging.warn("chuds: %s megachuds: %s total blocks: %s"
                         % (len(self.chuds),
@@ -233,7 +235,6 @@ class Connection(object):
     def del_megachud(self, user):
         for u in self.megachuds:
             if user.id == u.id: self.megachuds.remove(u)
-
 
 
 def setup_logging(args):
@@ -270,10 +271,11 @@ if __name__ == '__main__':
             conn.poll_lists()
 
             if conn.state.get('megachud'):
+                megachud = conn.api.GetUser(user_id=conn.state.get('megachud'))
                 logging.warn("continuing on %s (%s/%s)..."
-                                % (conn.state.get('megachud').screen_name,
+                                % (megachud.screen_name,
                                    conn.state.get('already_blocked'),
-                                   conn.state.get('megachud').followers_count))
+                                   megachud.followers_count))
             else:
                 logging.warn("no megachuds in list. sleeping for %s seconds"
                                 % args.sleep)

@@ -27,7 +27,8 @@ enlist.setup_logging(args)
 
 with enlist.Connection(args) as conn:
     if conn.state.get('megachud'):
-        print "current megachud:", conn.state.get('megachud').screen_name
+        megachud = conn.api.GetUser(user_id=conn.state.get('megachud'))
+        print "current megachud:", megachud.screen_name
     else:   
         print "no megachud set"
     print "blocks:", len(conn.state.get('blocked'))
