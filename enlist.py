@@ -57,7 +57,7 @@ class Connection(object):
         if not self.state.get('blocked') or self.args.rebuild_blocks:
             logging.warn("building list of blocked accounts.")
             logging.warn("this takes a while but only happens once")
-            self.state['blocked'] = self.api.GetBlocksIDs()
+            self.getBlocks()
             logging.warn("done!")
 
         lists = self.api.GetLists()
@@ -89,6 +89,20 @@ class Connection(object):
         state['exc_type'], state['exc_value'] = (None, None)
 
         return state
+
+
+    def getBlocks(self):
+        next_cursor = -1
+        while next_cursor != 0:
+            try:
+                (next_cursor, prev_cursor, blocks) = self.api.GetBlocksIDsPaged(cursor=next_cursor)
+            except:
+                logging.exception("error reading blocks")
+            logging.warn("cursor: %s got %s blocks" % (next_cursor, len(blocks)))
+
+            for b in blocks:
+                if b not in self.state.get('blocked'):
+                    self.state['blocked'].append(b)
 
 
     def addFollowers(self, user, count=200):
