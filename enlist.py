@@ -71,8 +71,8 @@ class Connection(object):
 
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.state['exc_type'] = exc_type
-        self.state['exc_value'] = exc_value
+        self.state['exc_type'] = str(exc_type)
+        self.state['exc_value'] = str(exc_value)
         logging.warn("writing statefile %s" % self.statefile)
         try:
             json.dump(self.state, open(self.statefile, 'w'))
