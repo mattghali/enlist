@@ -54,7 +54,7 @@ class Connection(object):
 
         self.api.InitializeRateLimit()
 
-        if not self.state.get('blocked') or self.args.rebuild_blocks:
+        if not self.state.get('blocked') or self.args.rebuild_blocks and not self.args.skip_blocks:
             logging.warn("building list of blocked accounts.")
             logging.warn("this takes a while but only happens once")
             self.getBlocks()
@@ -260,6 +260,8 @@ if __name__ == '__main__':
                         help='name of list of users to block, with followers')
     parser.add_argument('--rebuild-blocks', action='store_true', default=False,
                         help='rebuild internal list of blocked accts')
+    parser.add_argument('--skip-blocks', action='store_true', default=False,
+                        help='skip building internal list of blocked accts')
     parser.add_argument('--verbose', action='store_true', default=False,
                         help='enable debugging output')
     args = parser.parse_args()
