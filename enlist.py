@@ -98,11 +98,13 @@ class Connection(object):
                 (next_cursor, prev_cursor, blocks) = self.api.GetBlocksIDsPaged(cursor=next_cursor)
             except:
                 logging.exception("error reading blocks")
-            logging.warn("cursor: %s got %s blocks" % (next_cursor, len(blocks)))
+            logging.warn("cursor: %s got %s blocks - %s total" % (next_cursor, len(blocks), len(self.state['blocked'])))
 
             for b in blocks:
                 if b not in self.state.get('blocked'):
                     self.state['blocked'].append(b)
+                else:
+                    logging.debug("already seen: id %s" % b)
 
 
     def addFollowers(self, user, count=200):
