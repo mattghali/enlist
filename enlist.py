@@ -54,7 +54,7 @@ class Connection(object):
 
         self.api.InitializeRateLimit()
 
-        if not self.state.get('blocked') or self.args.rebuild_blocks and not self.args.skip_blocks:
+        if (not self.state.get('blocked') or self.args.rebuild_blocks) and not self.args.skip_blocks:
             logging.warn("building list of blocked accounts.")
             logging.warn("this takes a while but only happens once")
             self.getBlocks()
